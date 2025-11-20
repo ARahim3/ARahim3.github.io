@@ -26,13 +26,13 @@ header {
 
 /* Option A: Small portrait in header (uncomment to use) */
 
-/*.portrait-small {
+.portrait-small {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: 1px solid #000;
+    border: 1px solid #fff;
     flex-shrink: 0;
-}*/
+}
 
 header h1 {
     font-size: 18px;
@@ -94,7 +94,7 @@ section {
     width: 120px;
     height: 120px;
     border-radius: 50%;
-    border: 1px solid #000;
+    border: 1px solid #fff;
     float: left;
     margin: 0 20px 20px 0;
 }
