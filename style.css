@@ -141,6 +141,21 @@ pre code {
     padding: 0;
 }
 
+/* View all posts link */
+.view-all {
+    display: inline-block;
+    margin-top: 20px;
+    font-size: 14px;
+    color: #666;
+    text-decoration: none;
+}
+
+.view-all:hover {
+    color: #000;
+    background: none;
+    text-decoration: underline;
+}
+
 /* Mobile */
 @media (max-width: 600px) {
     body {
