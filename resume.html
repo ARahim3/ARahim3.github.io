@@ -11,99 +11,40 @@
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="stylesheet" href="style.css" />
         <style>
-            /* Resume-specific styles */
-            .resume-header {
+            .download-section {
                 text-align: center;
-                margin-bottom: 40px;
+                margin: 40px 0 30px 0;
             }
 
-            .resume-header h1 {
-                font-size: 24px;
-                margin-bottom: 10px;
+            .download-section a {
+                display: inline-block;
+                padding: 10px 20px;
+                border: 1px solid #000;
+                text-decoration: none;
+                color: #000;
             }
 
-            .resume-contact {
-                font-size: 12px;
-                color: #666;
+            .download-section a:hover {
+                background: #000;
+                color: #fff;
             }
 
-            .resume-section {
-                margin-bottom: 40px;
-            }
-
-            .resume-section h2 {
-                font-size: 14px;
-                font-weight: bold;
-                margin-bottom: 20px;
-                padding-bottom: 5px;
-                border-bottom: 1px solid #000;
-            }
-
-            .job-title {
-                font-weight: bold;
-                display: inline;
-            }
-
-            .job-company {
-                float: right;
-                color: #666;
-            }
-
-            .job-dates {
-                float: right;
-                color: #666;
-                font-size: 12px;
-            }
-
-            .job-header {
-                margin-bottom: 10px;
-                overflow: hidden;
-            }
-
-            .resume-section ul {
-                list-style: disc;
-                padding-left: 20px;
-                margin-bottom: 20px;
-            }
-
-            .resume-section ul li::before {
-                content: "";
-            }
-
-            .resume-section ul li {
-                margin-bottom: 8px;
-            }
-
-            .skills-table {
+            .pdf-container {
+                border: 1px solid #000;
                 width: 100%;
-                margin-bottom: 20px;
+                height: 800px;
+                margin-bottom: 40px;
             }
 
-            .skills-table td {
-                padding: 4px 0;
-                vertical-align: top;
+            .pdf-container iframe {
+                width: 100%;
+                height: 100%;
+                border: none;
             }
 
-            .skills-table td:first-child {
-                font-weight: bold;
-                width: 140px;
-            }
-
-            .download-link {
-                text-align: center;
-                margin: 40px 0 20px 0;
-            }
-
-            @media print {
-                nav,
-                .download-link,
-                footer {
-                    display: none;
-                }
-                body {
-                    font-size: 11px;
-                    padding: 0;
-                    max-width: 100%;
+            @media (max-width: 600px) {
+                .pdf-container {
+                    height: 600px;
                 }
             }
         </style>
@@ -117,199 +58,20 @@
 
         <nav>
             <a href="/">Home</a>
+            <a href="/about.html">About</a>
             <a href="/blog.html">Blog</a>
             <a href="/resume.html">Resume</a>
             <a href="/#contact">Contact</a>
         </nav>
 
         <main>
-            <div class="resume-header">
-                <h1>Abdur Rahim</h1>
-                <div class="resume-contact">
-                    <a href="mailto:erahim3@gmail.com">erahim3@gmail.com</a> |
-                    +880 1303-128283<br />
-                    <a href="https://github.com/arahim3" target="_blank"
-                        >github.com/arahim3</a
-                    >
-                    |
-                    <a href="https://www.kaggle.com/rahim3" target="_blank"
-                        >kaggle.com/rahim3</a
-                    >
-                    |
-                    <a
-                        href="https://www.linkedin.com/in/arahim3/"
-                        target="_blank"
-                        >linkedin.com/in/arahim3</a
-                    >
-                </div>
+            <div class="download-section">
+                <a href="/resume.pdf" download>Download Resume (PDF) →</a>
             </div>
 
-            <div class="download-link">
-                <a href="#" onclick="window.print(); return false;"
-                    >Download PDF →</a
-                >
+            <div class="pdf-container">
+                <iframe src="/resume.pdf" title="Resume PDF"></iframe>
             </div>
-
-            <section class="resume-section">
-                <h2>Technical Skills</h2>
-                <table class="skills-table">
-                    <tr>
-                        <td>Languages:</td>
-                        <td>Python (AsyncIO, Type Hints), SQL</td>
-                    </tr>
-                    <tr>
-                        <td>Voice AI:</td>
-                        <td>
-                            Pipecat, Whisper, Ultravox, Kokoro, Deepgram, WebRTC
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>LLM/ML:</td>
-                        <td>
-                            vLLM, HuggingFace, PyTorch, TensorFlow, LangChain,
-                            RAG, Function Calling
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Infrastructure:</td>
-                        <td>
-                            Docker, AWS, CUDA, GPU Optimization, Vector DBs,
-                            Model Quantization
-                        </td>
-                    </tr>
-                </table>
-            </section>
-
-            <section class="resume-section">
-                <h2>Professional Experience</h2>
-
-                <div class="job-header">
-                    <span class="job-title">Senior AI Engineer</span>
-                    <span class="job-dates">May 2025 -- Present</span><br />
-                    <span style="color: #666">ESAP, Saudi Arabia (Remote)</span>
-                </div>
-                <ul>
-                    <li>
-                        Built production voice agents with Pipecat achieving
-                        &lt;100ms TTFB for real-time interactions
-                    </li>
-                    <li>
-                        Developed custom LLM services with vLLM, Ultravox
-                        (audio-to-text LLM), and HuggingFace models
-                    </li>
-                    <li>
-                        Created custom TTS services (Kokoro) with streaming
-                        optimization and GPU acceleration
-                    </li>
-                    <li>
-                        Implemented function calling and agentic workflows with
-                        Qwen/Llama models using RAG
-                    </li>
-                    <li>
-                        Optimized multi-model GPU deployments (Whisper, vLLM,
-                        TTS) on RTX 3090/4090
-                    </li>
-                    <li>
-                        Built voice-controlled web automation with LLM agents
-                        and Playwright for ERP integration
-                    </li>
-                </ul>
-
-                <div class="job-header">
-                    <span class="job-title"
-                        >AI Prompting & Alignment Specialist</span
-                    >
-                    <span class="job-dates">June 2024 -- Apr 2025</span><br />
-                    <span style="color: #666">Outlier.ai, Remote</span>
-                </div>
-                <ul>
-                    <li>
-                        Analyzed LLM outputs for RLHF data collection and
-                        alignment quality across multiple model families
-                    </li>
-                    <li>
-                        Engineered progressive-difficulty prompts to benchmark
-                        reasoning limits and evaluate model capabilities
-                    </li>
-                    <li>
-                        Optimized model performance through structured
-                        Chain-of-Thought prompt engineering
-                    </li>
-                </ul>
-            </section>
-
-            <section class="resume-section">
-                <h2>Competitive Experience</h2>
-
-                <div class="job-header">
-                    <span class="job-title">Kaggle Competitions Expert</span>
-                    <span class="job-dates">Dec 2019 -- Present</span>
-                </div>
-                <ul>
-                    <li>
-                        Competing with top data scientists from Google, NVIDIA,
-                        HuggingFace, Samsung & H2O.ai
-                    </li>
-                    <li>
-                        Developing ML models for complex challenges including
-                        Google Code Golf 2025 (NeurIPS competition)
-                    </li>
-                    <li>
-                        Google Landmark Recognition,
-                        <strong>Silver Medal</strong> | Google Landmark
-                        Retrieval, <strong>Silver Medal</strong>
-                    </li>
-                    <li>
-                        SIIM-ISIC Melanoma Classification, Top
-                        <strong>12%</strong> | OpenVaccine mRNA Degradation, Top
-                        <strong>12%</strong>
-                    </li>
-                </ul>
-            </section>
-
-            <section class="resume-section">
-                <h2>Projects</h2>
-
-                <div class="job-header">
-                    <span class="job-title"
-                        >AI Customer Service Voice Agent</span
-                    >
-                    <a
-                        href="https://github.com/ARahim3/ai-cutomer-service-voice-agent-cpu"
-                        target="_blank"
-                        style="float: right; font-size: 12px"
-                        >GitHub Repo</a
-                    >
-                </div>
-                <ul>
-                    <li>
-                        Built end-to-end voice AI pipeline using local
-                        open-source stack (Whisper, Llama.cpp, Kokoro)
-                    </li>
-                    <li>
-                        Implemented modular RAG system with ChromaDB indexing
-                        JSON, PDF, and TXT documents
-                    </li>
-                    <li>
-                        Integrated VAD, persistent memory, and sentiment
-                        analysis for context-aware responses
-                    </li>
-                </ul>
-            </section>
-
-            <section class="resume-section">
-                <h2>Education</h2>
-
-                <div class="job-header">
-                    <span class="job-title">University of Chittagong</span>
-                    <span class="job-dates">Jan 2017 -- May 2023</span><br />
-                    <span style="color: #666">Chittagong, Bangladesh</span>
-                </div>
-                <p>
-                    <strong>Bachelor of Science</strong> in Electrical and
-                    Electronic Engineering
-                </p>
-            </section>
         </main>
 
         <footer>
