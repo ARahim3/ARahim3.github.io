@@ -198,11 +198,6 @@ pre code {
     body {
         padding: 20px 15px;
     }
-
-    nav a {
-        display: block;
-        margin-bottom: 8px;
-    }
 }
 
 /* Blog card styles */
