@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <!-- White background -->
+  <rect width="1200" height="630" fill="#fff"/>
+
+  <!-- Border -->
+  <rect x="40" y="40" width="1120" height="550" fill="none" stroke="#000" stroke-width="2"/>
+
+  <!-- Name -->
+  <text x="600" y="280" font-family="monospace" font-size="72" font-weight="bold" text-anchor="middle" fill="#000">Abdur Rahim</text>
+
+  <!-- Title -->
+  <text x="600" y="350" font-family="monospace" font-size="32" text-anchor="middle" fill="#666">Senior AI Engineer • Voice AI • LLMs</text>
+
+  <!-- URL -->
+  <text x="600" y="420" font-family="monospace" font-size="24" text-anchor="middle" fill="#999">arahim3.github.io</text>
+</svg>
