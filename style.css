@@ -5,7 +5,9 @@
 }
 
 body {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
     font-size: 14px;
     line-height: 1.6;
     color: #000;
@@ -23,7 +25,7 @@ header {
 }
 
 /* Option A: Small portrait in header (uncomment to use) */
-/*
+
 .portrait-small {
     width: 40px;
     height: 40px;
@@ -31,7 +33,6 @@ header {
     border: 1px solid #000;
     flex-shrink: 0;
 }
-*/
 
 header h1 {
     font-size: 18px;
@@ -159,7 +160,9 @@ footer {
 
 /* Code styling */
 code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
     background: #f5f5f5;
     padding: 2px 4px;
 }
