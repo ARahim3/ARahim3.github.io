@@ -90,14 +90,14 @@ section {
 
 /* Option B: Medium portrait in about section (uncomment to use) */
 
-.portrait-medium {
+/*.portrait-medium {
     width: 120px;
     height: 120px;
     border-radius: 50%;
     border: 1px solid #fff;
     float: left;
     margin: 0 20px 20px 0;
-}
+}*/
 
 h2 {
     font-size: 16px;
