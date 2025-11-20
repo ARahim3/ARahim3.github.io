@@ -17,7 +17,21 @@ body {
 
 header {
     margin-bottom: 40px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
+
+/* Option A: Small portrait in header (uncomment to use) */
+/*
+.portrait-small {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid #000;
+    flex-shrink: 0;
+}
+*/
 
 header h1 {
     font-size: 18px;
@@ -63,6 +77,27 @@ main {
 section {
     margin-bottom: 60px;
 }
+
+/* Intro section */
+#intro {
+    font-size: 16px;
+    line-height: 1.7;
+    margin-bottom: 60px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+/* Option B: Medium portrait in about section (uncomment to use) */
+/*
+.portrait-medium {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 1px solid #000;
+    float: left;
+    margin: 0 20px 20px 0;
+}
+*/
 
 h2 {
     font-size: 16px;
