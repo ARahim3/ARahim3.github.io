@@ -88,15 +88,21 @@ section {
     border-bottom: 1px solid #e0e0e0;
 }
 
-/* Medium portrait in about section */
+/* Medium portrait in about section (optional) */
 
-.portrait-medium {
+/*.portrait-medium {
     width: 120px;
     height: 120px;
     border-radius: 50%;
     border: 1px solid #fff;
     float: left;
     margin: 0 20px 20px 0;
+}*/
+
+/* About section - more paragraph spacing */
+#about p {
+    margin-bottom: 24px;
+    line-height: 1.7;
 }
 
 h2 {
