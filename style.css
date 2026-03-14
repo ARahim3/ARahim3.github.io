@@ -1,13 +1,23 @@
+/* Import JetBrains Mono */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
+::selection {
+    background: #000;
+    color: #fff;
+}
+
 body {
-    font-family:
-        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-        "Liberation Mono", "Courier New", monospace;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 14px;
     line-height: 1.6;
     color: #374151;
@@ -15,7 +25,11 @@ body {
     max-width: 800px;
     margin: 0 auto;
     padding: 40px 20px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
+
+/* ── Header ── */
 
 header {
     margin-bottom: 40px;
@@ -24,14 +38,17 @@ header {
     gap: 15px;
 }
 
-/* Option A: Small portrait in header (uncomment to use) */
-
 .portrait-small {
     width: 40px;
     height: 40px;
     border-radius: 50%;
     border: 1px solid #fff;
     flex-shrink: 0;
+    transition: opacity 0.2s;
+}
+
+.portrait-small:hover {
+    opacity: 0.7;
 }
 
 header h1 {
@@ -55,21 +72,28 @@ header p {
     color: #666;
 }
 
+/* ── Navigation ── */
+
 nav {
     margin-bottom: 60px;
     border-bottom: 1px solid #000;
     padding-bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 20px;
 }
 
 nav a {
     color: #000;
     text-decoration: none;
-    margin-right: 20px;
+    transition: color 0.15s;
 }
 
 nav a:hover {
     text-decoration: underline;
 }
+
+/* ── Layout ── */
 
 main {
     margin-bottom: 60px;
@@ -79,37 +103,14 @@ section {
     margin-bottom: 60px;
 }
 
-/* Intro section */
-#intro {
-    font-size: 16px;
-    line-height: 1.7;
-    margin-bottom: 60px;
-    padding-bottom: 40px;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-/* Medium portrait in about section (optional) */
-
-/*.portrait-medium {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    border: 1px solid #fff;
-    float: left;
-    margin: 0 20px 20px 0;
-}*/
-
-/* About section - more paragraph spacing */
-#about p {
-    margin-bottom: 24px;
-    line-height: 1.7;
-}
+/* ── Typography ── */
 
 h2 {
     font-size: 16px;
     font-weight: normal;
     margin-bottom: 30px;
     text-transform: lowercase;
+    letter-spacing: 0.05em;
 }
 
 h3 {
@@ -117,6 +118,21 @@ h3 {
     font-weight: bold;
     margin-bottom: 4px;
 }
+
+/* ── Links ── */
+
+a {
+    color: #000;
+    text-decoration: underline;
+    transition: color 0.15s, background-color 0.15s;
+}
+
+a:hover {
+    background: #000;
+    color: #fff;
+}
+
+/* ── Articles ── */
 
 article {
     margin-bottom: 40px;
@@ -133,6 +149,8 @@ article p {
     margin-bottom: 10px;
 }
 
+/* ── Lists ── */
+
 ul {
     list-style: none;
     padding-left: 0;
@@ -146,45 +164,132 @@ ul li::before {
     content: "- ";
 }
 
-a {
-    color: #000;
-    text-decoration: underline;
+/* ── Intro section ── */
+
+#intro {
+    font-size: 16px;
+    line-height: 1.7;
+    margin-bottom: 60px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid #e0e0e0;
 }
 
-a:hover {
-    background: #000;
-    color: #fff;
+/* ── About section ── */
+
+#about p {
+    margin-bottom: 24px;
+    line-height: 1.7;
+    text-align: justify;
+    hyphens: auto;
+    -webkit-hyphens: auto;
 }
 
-footer {
-    border-top: 1px solid #000;
-    padding-top: 20px;
-    font-size: 12px;
-    color: #666;
+/* ── Project cards ── */
+
+.project-card {
+    border: 1px solid #000;
+    padding: 24px;
+    margin-bottom: 24px;
+    transition: border-color 0.2s;
 }
 
-/* Code styling */
-code {
-    font-family:
-        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-        "Liberation Mono", "Courier New", monospace;
-    background: #f5f5f5;
-    padding: 2px 4px;
+.project-card:hover {
+    border-color: #666;
 }
 
-pre {
-    background: #f5f5f5;
-    padding: 10px;
-    overflow-x: auto;
-    margin: 20px 0;
+.project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
 }
 
-pre code {
+.project-header h3 {
+    margin-bottom: 0;
+}
+
+.project-preview {
+    display: block;
+    margin-bottom: 16px;
+    border: 1px solid #e0e0e0;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+
+.project-preview:hover {
     background: none;
-    padding: 0;
+    border-color: #999;
 }
 
-/* View all posts link */
+.project-preview-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: opacity 0.2s;
+}
+
+.project-preview:hover .project-preview-img {
+    opacity: 0.9;
+}
+
+.project-badge {
+    flex-shrink: 0;
+    margin-left: 16px;
+    text-decoration: none;
+}
+
+.project-badge:hover {
+    background: none;
+}
+
+.project-badge img {
+    display: block;
+    height: 20px;
+}
+
+.project-card > p {
+    margin-bottom: 16px;
+    line-height: 1.6;
+    color: #374151;
+}
+
+.project-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.project-tags span {
+    font-size: 11px;
+    color: #666;
+    border: 1px solid #ddd;
+    padding: 2px 8px;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.project-card:hover .project-tags span {
+    border-color: #bbb;
+}
+
+.project-links {
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+}
+
+.project-links a {
+    color: #000;
+    text-decoration: none;
+}
+
+.project-links a:hover {
+    text-decoration: underline;
+    background: none;
+}
+
+/* ── View all link ── */
+
 .view-all {
     display: inline-block;
     margin-top: 20px;
@@ -199,14 +304,8 @@ pre code {
     text-decoration: underline;
 }
 
-/* Mobile */
-@media (max-width: 600px) {
-    body {
-        padding: 20px 15px;
-    }
-}
+/* ── Blog cards ── */
 
-/* Blog card styles */
 .blog-card {
     border: 1px solid #000;
     padding: 20px;
@@ -214,6 +313,11 @@ pre code {
     display: flex;
     gap: 20px;
     align-items: flex-start;
+    transition: border-color 0.2s;
+}
+
+.blog-card:hover {
+    border-color: #666;
 }
 
 .blog-thumbnail {
@@ -261,7 +365,70 @@ pre code {
     color: #fff;
 }
 
+/* ── Code ── */
+
+code {
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+    background: #f5f5f5;
+    padding: 2px 4px;
+}
+
+pre {
+    background: #f5f5f5;
+    padding: 10px;
+    overflow-x: auto;
+    margin: 20px 0;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+}
+
+/* ── Footer ── */
+
+footer {
+    border-top: 1px solid #000;
+    padding-top: 20px;
+    font-size: 12px;
+    color: #666;
+}
+
+/* ── Responsive ── */
+
 @media (max-width: 600px) {
+    body {
+        padding: 20px 15px;
+    }
+
+    header {
+        margin-bottom: 30px;
+    }
+
+    nav {
+        margin-bottom: 40px;
+        gap: 4px 16px;
+    }
+
+    section {
+        margin-bottom: 40px;
+    }
+
+    .project-card {
+        padding: 16px;
+    }
+
+    .project-header {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .project-badge {
+        margin-left: 0;
+    }
+
     .blog-card {
         flex-direction: column;
     }
