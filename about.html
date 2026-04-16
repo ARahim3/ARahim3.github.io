@@ -43,6 +43,26 @@
 
         <title>About - Abdur Rahim</title>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <script>
+            (function () {
+                if (localStorage.getItem("theme") === "dark") {
+                    document.documentElement.setAttribute(
+                        "data-theme",
+                        "dark"
+                    );
+                }
+            })();
+            function toggleTheme() {
+                var html = document.documentElement;
+                if (html.getAttribute("data-theme") === "dark") {
+                    html.removeAttribute("data-theme");
+                    localStorage.setItem("theme", "light");
+                } else {
+                    html.setAttribute("data-theme", "dark");
+                    localStorage.setItem("theme", "dark");
+                }
+            }
+        </script>
         <link rel="stylesheet" href="style.css" />
     </head>
     <body>
@@ -50,6 +70,11 @@
             <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait-small" />
             <h1><a href="/">Abdur Rahim</a></h1>
             <p>Senior AI Engineer • Voice AI • LLMs</p>
+            <button
+                class="theme-toggle"
+                onclick="toggleTheme()"
+                aria-label="Toggle dark mode"
+            ></button>
         </header>
 
         <nav>
@@ -119,6 +144,17 @@
                     papers. Not as homework, but as exploration. There's always
                     something new being discovered, and staying at that edge is
                     where I want to be.
+                </p>
+
+                <p class="about-cta">
+                    Want to chat? Reach me at
+                    <a href="mailto:erahim3@gmail.com">erahim3@gmail.com</a>
+                    or on
+                    <a
+                        href="https://www.linkedin.com/in/arahim3/"
+                        target="_blank"
+                        >LinkedIn</a
+                    >.
                 </p>
             </section>
         </main>

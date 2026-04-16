@@ -14,7 +14,7 @@
         <meta property="og:title" content="Abdur Rahim - Senior AI Engineer" />
         <meta
             property="og:description"
-            content="Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Expert. Building production AI applications."
+            content="Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert. Building production AI applications."
         />
         <meta
             property="og:image"
@@ -28,7 +28,7 @@
         <meta name="twitter:title" content="Abdur Rahim - Senior AI Engineer" />
         <meta
             name="twitter:description"
-            content="Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Expert. Building production AI applications."
+            content="Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert. Building production AI applications."
         />
         <meta
             name="twitter:image"
@@ -37,13 +37,73 @@
 
         <title>Abdur Rahim</title>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <script>
+            (function () {
+                if (localStorage.getItem("theme") === "dark") {
+                    document.documentElement.setAttribute(
+                        "data-theme",
+                        "dark"
+                    );
+                }
+            })();
+            function toggleTheme() {
+                var html = document.documentElement;
+                if (html.getAttribute("data-theme") === "dark") {
+                    html.removeAttribute("data-theme");
+                    localStorage.setItem("theme", "light");
+                } else {
+                    html.setAttribute("data-theme", "dark");
+                    localStorage.setItem("theme", "dark");
+                }
+            }
+        </script>
         <link rel="stylesheet" href="style.css" />
+
+        <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "Person",
+                "name": "Abdur Rahim",
+                "url": "https://arahim3.github.io/",
+                "image": "https://arahim3.github.io/portrait.jpg",
+                "jobTitle": "Senior AI Engineer",
+                "description": "Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert.",
+                "email": "mailto:erahim3@gmail.com",
+                "worksFor": {
+                    "@type": "Organization",
+                    "name": "ESAP"
+                },
+                "address": {
+                    "@type": "PostalAddress",
+                    "addressCountry": "BD"
+                },
+                "knowsAbout": [
+                    "Voice AI",
+                    "Large Language Models",
+                    "Conversational AI",
+                    "Machine Learning",
+                    "JAX",
+                    "ARC-AGI",
+                    "Computational Neuroscience"
+                ],
+                "sameAs": [
+                    "https://github.com/arahim3",
+                    "https://www.kaggle.com/rahim3",
+                    "https://www.linkedin.com/in/arahim3/"
+                ]
+            }
+        </script>
     </head>
     <body>
         <header>
             <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait-small" />
             <h1><a href="/">Abdur Rahim</a></h1>
             <p>Senior AI Engineer • Voice AI • LLMs</p>
+            <button
+                class="theme-toggle"
+                onclick="toggleTheme()"
+                aria-label="Toggle dark mode"
+            ></button>
         </header>
 
         <nav>

@@ -31,6 +31,26 @@
 
         <title>Resume - Abdur Rahim</title>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <script>
+            (function () {
+                if (localStorage.getItem("theme") === "dark") {
+                    document.documentElement.setAttribute(
+                        "data-theme",
+                        "dark"
+                    );
+                }
+            })();
+            function toggleTheme() {
+                var html = document.documentElement;
+                if (html.getAttribute("data-theme") === "dark") {
+                    html.removeAttribute("data-theme");
+                    localStorage.setItem("theme", "light");
+                } else {
+                    html.setAttribute("data-theme", "dark");
+                    localStorage.setItem("theme", "dark");
+                }
+            }
+        </script>
         <link rel="stylesheet" href="style.css" />
         <style>
             .download-section {
@@ -41,18 +61,12 @@
             .download-section a {
                 display: inline-block;
                 padding: 10px 20px;
-                border: 1px solid #000;
+                border: 1px solid currentColor;
                 text-decoration: none;
-                color: #000;
-            }
-
-            .download-section a:hover {
-                background: #000;
-                color: #fff;
             }
 
             .pdf-container {
-                border: 1px solid #000;
+                border: 1px solid currentColor;
                 width: 100%;
                 height: 800px;
                 margin-bottom: 40px;
@@ -62,6 +76,7 @@
                 width: 100%;
                 height: 100%;
                 border: none;
+                background: #fff;
             }
 
             @media (max-width: 600px) {
@@ -76,6 +91,11 @@
             <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait-small" />
             <h1><a href="/">Abdur Rahim</a></h1>
             <p>Senior AI Engineer • Voice AI • LLMs</p>
+            <button
+                class="theme-toggle"
+                onclick="toggleTheme()"
+                aria-label="Toggle dark mode"
+            ></button>
         </header>
 
         <nav>
