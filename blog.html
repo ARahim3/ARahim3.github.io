@@ -1,108 +1,100 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta
-            name="description"
-            content="Writing about AI, machine learning, and technical deep dives"
-        />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Writing about AI, machine learning, and technical deep dives" />
 
-        <!-- Open Graph / Social Media Preview -->
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://arahim3.github.io/blog.html" />
-        <meta property="og:title" content="Blog - Abdur Rahim" />
-        <meta
-            property="og:description"
-            content="Writing about AI, machine learning, and technical deep dives"
-        />
-        <meta property="og:image" content="https://arahim3.github.io/social-card.png" />
+  <!-- Open Graph / Social Media Preview -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://arahim3.github.io/blog.html" />
+  <meta property="og:title" content="Writing — Abdur Rahim" />
+  <meta property="og:description" content="Writing about AI, machine learning, and technical deep dives" />
+  <meta property="og:image" content="https://arahim3.github.io/social-card.png" />
 
-        <!-- Twitter Card -->
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta property="twitter:domain" content="arahim3.github.io" />
-        <meta property="twitter:url" content="https://arahim3.github.io/blog.html" />
-        <meta name="twitter:title" content="Blog - Abdur Rahim" />
-        <meta
-            name="twitter:description"
-            content="Writing about AI, machine learning, and technical deep dives"
-        />
-        <meta name="twitter:image" content="https://arahim3.github.io/social-card.png" />
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta property="twitter:domain" content="arahim3.github.io" />
+  <meta property="twitter:url" content="https://arahim3.github.io/blog.html" />
+  <meta name="twitter:title" content="Writing — Abdur Rahim" />
+  <meta name="twitter:description" content="Writing about AI, machine learning, and technical deep dives" />
+  <meta name="twitter:image" content="https://arahim3.github.io/social-card.png" />
 
-        <title>Blog - Abdur Rahim</title>
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <script>
-            (function () {
-                if (localStorage.getItem("theme") === "dark") {
-                    document.documentElement.setAttribute(
-                        "data-theme",
-                        "dark"
-                    );
-                }
-            })();
-            function toggleTheme() {
-                var html = document.documentElement;
-                if (html.getAttribute("data-theme") === "dark") {
-                    html.removeAttribute("data-theme");
-                    localStorage.setItem("theme", "light");
-                } else {
-                    html.setAttribute("data-theme", "dark");
-                    localStorage.setItem("theme", "dark");
-                }
-            }
-        </script>
-        <link rel="stylesheet" href="style.css" />
-    </head>
-    <body>
-        <header>
-            <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait-small" />
-            <h1><a href="/">Abdur Rahim</a></h1>
-            <p>Senior AI Engineer • Voice AI • LLMs</p>
-            <button
-                class="theme-toggle"
-                onclick="toggleTheme()"
-                aria-label="Toggle dark mode"
-            ></button>
-        </header>
+  <title>Writing — Abdur Rahim</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-        <nav>
-            <a href="/">Home</a>
-            <a href="/about.html">About</a>
-            <a href="/blog.html">Blog</a>
-            <a href="/projects.html">Projects</a>
-            <a href="/resume.html">Resume</a>
-        </nav>
+  <script>
+    (function () {
+      var t = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
 
-        <main>
-            <section id="blog">
-                <h2>Blog</h2>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
 
-                <article class="blog-card">
-                    <div class="blog-thumbnail">
-                        <div class="thumbnail-placeholder">
-                            <span>🧩</span>
-                        </div>
-                    </div>
-                    <div class="blog-content">
-                        <h3>A Comprehensive Guide to ARC-AGI Challenge</h3>
-                        <p>
-                            Deep dive into the Abstraction and Reasoning Corpus
-                            (ARC) challenge. Exploring pattern recognition,
-                            abstract reasoning, and the quest for artificial
-                            general intelligence through visual puzzles.
-                        </p>
-                        <a
-                            href="https://arahim3.github.io/arc-agi-guide/"
-                            class="read-link"
-                            >Read the post</a
-                        >
-                    </div>
-                </article>
-            </section>
-        </main>
+<div class="page">
+  <header class="site-header">
+    <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait" />
+    <div class="name-block">
+      <div class="name"><a href="/">abdur rahim</a><span class="cursor"></span></div>
+      <div class="tag">senior ai engineer · bangladesh → remote</div>
+    </div>
+    <div class="hdr-actions">
+      <button class="icon-btn" onclick="toggleTheme()">dark</button>
+    </div>
+  </header>
 
-        <footer>
-            <p>© 2026 Abdur Rahim</p>
-        </footer>
-    </body>
+  <nav class="main-nav">
+    <a href="/"><span class="num">01</span>home</a>
+    <a href="/about.html"><span class="num">02</span>about</a>
+    <a href="/projects.html"><span class="num">03</span>projects</a>
+    <a href="/blog.html" class="active"><span class="num">04</span>writing</a>
+    <a href="/resume.html"><span class="num">05</span>resume</a>
+  </nav>
+
+  <div class="section-head">
+    <h2>Writing</h2>
+    <span class="meta">essays &amp; deep dives</span>
+  </div>
+
+  <article class="writing-item">
+    <div class="year">2025</div>
+    <div>
+      <h3><a href="https://arahim3.github.io/arc-agi-guide/">A Comprehensive Guide to ARC-AGI</a></h3>
+      <p>A long read on the Abstraction and Reasoning Corpus — what makes it hard, why pattern-matching falls short, and why it might be the closest thing we have to a fluid-intelligence benchmark. Covers the rules, the leaderboards, notable attacks, and where the real difficulty lives.</p>
+    </div>
+  </article>
+
+  <footer class="site-footer">
+    <span>© 2026 Abdur Rahim</span>
+    <span><a href="/">← home</a></span>
+  </footer>
+</div>
+
+<script>
+  function toggleTheme() {
+    var h = document.documentElement;
+    var cur = h.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    h.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch(e){}
+    document.querySelectorAll('.icon-btn').forEach(function(b){
+      if (b.textContent === 'dark' || b.textContent === 'light')
+        b.textContent = next === 'dark' ? 'light' : 'dark';
+    });
+  }
+  (function initThemeBtn(){
+    var cur = document.documentElement.getAttribute('data-theme') || 'light';
+    document.querySelectorAll('.icon-btn').forEach(function(b){
+      if (b.textContent === 'dark' || b.textContent === 'light')
+        b.textContent = cur === 'dark' ? 'light' : 'dark';
+    });
+  })();
+</script>
+</body>
 </html>

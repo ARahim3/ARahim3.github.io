@@ -1,229 +1,175 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta
-            name="description"
-            content="Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert. Building production AI applications."
-        />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert. Building production AI applications." />
 
-        <!-- Open Graph / Social Media Preview -->
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://arahim3.github.io/" />
-        <meta property="og:title" content="Abdur Rahim - Senior AI Engineer" />
-        <meta
-            property="og:description"
-            content="Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert. Building production AI applications."
-        />
-        <meta
-            property="og:image"
-            content="https://arahim3.github.io/social-card.png"
-        />
+  <!-- Open Graph / Social Media Preview -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://arahim3.github.io/" />
+  <meta property="og:title" content="Abdur Rahim — Senior AI Engineer" />
+  <meta property="og:description" content="Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert. Building production AI applications." />
+  <meta property="og:image" content="https://arahim3.github.io/social-card.png" />
 
-        <!-- Twitter Card -->
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta property="twitter:domain" content="arahim3.github.io" />
-        <meta property="twitter:url" content="https://arahim3.github.io/" />
-        <meta name="twitter:title" content="Abdur Rahim - Senior AI Engineer" />
-        <meta
-            name="twitter:description"
-            content="Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert. Building production AI applications."
-        />
-        <meta
-            name="twitter:image"
-            content="https://arahim3.github.io/social-card.png"
-        />
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta property="twitter:domain" content="arahim3.github.io" />
+  <meta property="twitter:url" content="https://arahim3.github.io/" />
+  <meta name="twitter:title" content="Abdur Rahim — Senior AI Engineer" />
+  <meta name="twitter:description" content="Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert. Building production AI applications." />
+  <meta name="twitter:image" content="https://arahim3.github.io/social-card.png" />
 
-        <title>Abdur Rahim</title>
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <script>
-            (function () {
-                if (localStorage.getItem("theme") === "dark") {
-                    document.documentElement.setAttribute(
-                        "data-theme",
-                        "dark"
-                    );
-                }
-            })();
-            function toggleTheme() {
-                var html = document.documentElement;
-                if (html.getAttribute("data-theme") === "dark") {
-                    html.removeAttribute("data-theme");
-                    localStorage.setItem("theme", "light");
-                } else {
-                    html.setAttribute("data-theme", "dark");
-                    localStorage.setItem("theme", "dark");
-                }
-            }
-        </script>
-        <link rel="stylesheet" href="style.css" />
+  <title>Abdur Rahim</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-        <script type="application/ld+json">
-            {
-                "@context": "https://schema.org",
-                "@type": "Person",
-                "name": "Abdur Rahim",
-                "url": "https://arahim3.github.io/",
-                "image": "https://arahim3.github.io/portrait.jpg",
-                "jobTitle": "Senior AI Engineer",
-                "description": "Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert.",
-                "email": "mailto:erahim3@gmail.com",
-                "worksFor": {
-                    "@type": "Organization",
-                    "name": "ESAP"
-                },
-                "address": {
-                    "@type": "PostalAddress",
-                    "addressCountry": "BD"
-                },
-                "knowsAbout": [
-                    "Voice AI",
-                    "Large Language Models",
-                    "Conversational AI",
-                    "Machine Learning",
-                    "JAX",
-                    "ARC-AGI",
-                    "Computational Neuroscience"
-                ],
-                "sameAs": [
-                    "https://github.com/arahim3",
-                    "https://www.kaggle.com/rahim3",
-                    "https://www.linkedin.com/in/arahim3/"
-                ]
-            }
-        </script>
-    </head>
-    <body>
-        <header>
-            <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait-small" />
-            <h1><a href="/">Abdur Rahim</a></h1>
-            <p>Senior AI Engineer • Voice AI • LLMs</p>
-            <button
-                class="theme-toggle"
-                onclick="toggleTheme()"
-                aria-label="Toggle dark mode"
-            ></button>
-        </header>
+  <script>
+    (function () {
+      var t = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
 
-        <nav>
-            <a href="/">Home</a>
-            <a href="/about.html">About</a>
-            <a href="/blog.html">Blog</a>
-            <a href="/projects.html">Projects</a>
-            <a href="/resume.html">Resume</a>
-        </nav>
+  <link rel="stylesheet" href="/style.css" />
 
-        <main>
-            <section id="recent">
-                <h2>Recent Work</h2>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Abdur Rahim",
+    "url": "https://arahim3.github.io/",
+    "image": "https://arahim3.github.io/portrait.jpg",
+    "jobTitle": "Senior AI Engineer",
+    "description": "Senior AI Engineer specializing in voice AI and LLM systems. Kaggle Competitions Expert.",
+    "email": "mailto:erahim3@gmail.com",
+    "worksFor": { "@type": "Organization", "name": "ESAP" },
+    "address": { "@type": "PostalAddress", "addressCountry": "BD" },
+    "knowsAbout": ["Voice AI", "Large Language Models", "Conversational AI", "Machine Learning", "JAX", "ARC-AGI", "Computational Neuroscience"],
+    "sameAs": ["https://github.com/arahim3", "https://www.kaggle.com/rahim3", "https://www.linkedin.com/in/arahim3/"]
+  }
+  </script>
+</head>
+<body class="hero-mono">
 
-                <article>
-                    <h3>
-                        <a
-                            href="https://github.com/ARahim3/mlx-tune"
-                            target="_blank"
-                            >mlx-tune</a
-                        >
-                    </h3>
-                    <time>2026</time>
-                    <p>
-                        Bringing the Unsloth experience to Mac users via
-                        Apple's MLX framework. Fine-tune LLMs locally on
-                        Apple Silicon with LoRA/QLoRA.
-                    </p>
-                </article>
+<div class="page">
+  <header class="site-header">
+    <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait" />
+    <div class="name-block">
+      <div class="name"><a href="/">abdur rahim</a><span class="cursor"></span></div>
+      <div class="tag">senior ai engineer · bangladesh → remote</div>
+    </div>
+    <div class="hdr-actions">
+      <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">dark</button>
+    </div>
+  </header>
 
-                <article>
-                    <h3>
-                        <a
-                            href="https://github.com/ARahim3/Lekho"
-                            target="_blank"
-                            >Lekho</a
-                        >
-                    </h3>
-                    <time>2026</time>
-                    <p>
-                        Avro Phonetic Bangla keyboard for macOS — native
-                        Apple Silicon, open source replacement for iAvro.
-                    </p>
-                </article>
+  <nav class="main-nav">
+    <a href="/" class="active"><span class="num">01</span>home</a>
+    <a href="/about.html"><span class="num">02</span>about</a>
+    <a href="/projects.html"><span class="num">03</span>projects</a>
+    <a href="/blog.html"><span class="num">04</span>writing</a>
+    <a href="/resume.html"><span class="num">05</span>resume</a>
+  </nav>
 
-                <article>
-                    <h3>
-                        <a
-                            href="https://github.com/ARahim3/omniASR-server"
-                            target="_blank"
-                            >omniASR-server</a
-                        >
-                    </h3>
-                    <time>2026</time>
-                    <p>
-                        OpenAI-compatible ASR/STT server powered by Meta's
-                        omnilingual-asr. Streaming via WebSocket and batch
-                        transcription via REST.
-                    </p>
-                </article>
+  <section class="hero">
+    <div class="eyebrow">currently</div>
+    <h1>
+      Building real-time <em>voice agents</em> that hold up in production — and chasing a form of intelligence that feels <em>more like a brain</em> than a transformer.
+    </h1>
+    <p class="lede">
+      Senior AI engineer at ESAP (remote, from Bangladesh). Kaggle Competitions Expert on the way to Grandmaster. Reading papers on the Thousand Brains Theory, learning to think in JAX, and writing about where intelligence actually comes from.
+    </p>
+  </section>
 
-                <a href="/projects.html" class="view-all"
-                    >View all projects →</a
-                >
-            </section>
+  <div class="now">
+    <div class="now-label"><span class="dot"></span>now · april 2026</div>
+    <ul>
+      <li>Shipping Pipecat-based voice pipelines at ESAP</li>
+      <li>Porting a paper from PyTorch → JAX, weekend by weekend</li>
+      <li>Reading: <em>A Thousand Brains</em>, Hawkins</li>
+      <li>Kaggle: one medal away from Master</li>
+    </ul>
+  </div>
 
-            <section id="writing">
-                <h2>Writing</h2>
+  <section>
+    <div class="section-head">
+      <h2>Currently Building</h2>
+      <span class="meta">one at a time</span>
+    </div>
+    <div class="projects">
+      <div class="project hero-project">
+        <a href="https://arahim3.github.io/mlx-tune/" target="_blank" class="thumb" title="Open docs"><img src="https://raw.githubusercontent.com/ARahim3/mlx-tune/main/docs/assets/img/og-image.png" alt="mlx-tune" loading="lazy" /></a>
+        <div class="body">
+          <div class="head">
+            <a href="https://arahim3.github.io/mlx-tune/" target="_blank" class="title">mlx-tune</a>
+            <a href="https://github.com/ARahim3/mlx-tune" target="_blank" class="stars-badge" title="Open on GitHub"><img src="https://img.shields.io/github/stars/ARahim3/mlx-tune?style=social" alt="stars" /></a>
+          </div>
+          <p class="desc">The Unsloth experience, for Apple Silicon. Fine-tune LLMs and vision-language models locally on your Mac with LoRA / QLoRA support.</p>
+          <div class="tags"><span>mlx</span><span>apple-silicon</span><span>lora</span><span>llm-finetuning</span></div>
+        </div>
+      </div>
+    </div>
+    <a href="/projects.html" class="view-all">all projects →</a>
+  </section>
 
-                <article>
-                    <h3>
-                        <a href="https://arahim3.github.io/arc-agi-guide/"
-                            >A Comprehensive Guide to ARC-AGI Challenge</a
-                        >
-                    </h3>
-                    <time>2025</time>
-                    <p>
-                        Deep dive into the Abstraction and Reasoning Corpus
-                        (ARC) challenge. Exploring pattern recognition, abstract
-                        reasoning, and the quest for artificial general
-                        intelligence through visual puzzles.
-                    </p>
-                </article>
+  <section>
+    <div class="section-head">
+      <h2>Writing</h2>
+      <span class="meta">essays &amp; deep dives</span>
+    </div>
 
-                <a href="/blog.html" class="view-all">View all posts →</a>
-            </section>
+    <article class="writing-item">
+      <div class="year">2025</div>
+      <div>
+        <h3><a href="https://arahim3.github.io/arc-agi-guide/">A Comprehensive Guide to ARC-AGI</a></h3>
+        <p>A long read on the Abstraction and Reasoning Corpus — what makes it hard, why pattern-matching falls short, and why it might be the closest thing we have to a fluid-intelligence benchmark.</p>
+      </div>
+    </article>
 
-            <section id="contact">
-                <h2>Contact</h2>
-                <ul>
-                    <li>
-                        Email:
-                        <a href="mailto:erahim3@gmail.com">erahim3@gmail.com</a>
-                    </li>
-                    <li>
-                        GitHub:
-                        <a href="https://github.com/arahim3" target="_blank"
-                            >github.com/arahim3</a
-                        >
-                    </li>
-                    <li>
-                        Kaggle:
-                        <a href="https://www.kaggle.com/rahim3" target="_blank"
-                            >kaggle.com/rahim3</a
-                        >
-                    </li>
-                    <li>
-                        LinkedIn:
-                        <a
-                            href="https://www.linkedin.com/in/arahim3/"
-                            target="_blank"
-                            >linkedin.com/in/arahim3</a
-                        >
-                    </li>
-                </ul>
-            </section>
-        </main>
+    <a href="/blog.html" class="view-all">all writing →</a>
+  </section>
 
-        <footer>
-            <p>© 2026 Abdur Rahim</p>
-        </footer>
-    </body>
+  <section>
+    <div class="section-head">
+      <h2>Elsewhere</h2>
+      <span class="meta">say hi</span>
+    </div>
+    <div class="contact-grid">
+      <a href="mailto:erahim3@gmail.com"><span class="k">email</span><span class="v">erahim3@gmail.com</span></a>
+      <a href="https://github.com/arahim3" target="_blank"><span class="k">github</span><span class="v">@arahim3</span></a>
+      <a href="https://www.kaggle.com/rahim3" target="_blank"><span class="k">kaggle</span><span class="v">@rahim3 · expert</span></a>
+      <a href="https://www.linkedin.com/in/arahim3/" target="_blank"><span class="k">linkedin</span><span class="v">/in/arahim3</span></a>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <span>© 2026 Abdur Rahim</span>
+    <span>built by hand · <a href="https://github.com/ARahim3/ARahim3.github.io">source</a></span>
+  </footer>
+</div>
+
+<script>
+  function toggleTheme() {
+    var h = document.documentElement;
+    var cur = h.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    h.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch(e){}
+    document.querySelectorAll('.icon-btn').forEach(function(b){
+      if (b.textContent === 'dark' || b.textContent === 'light')
+        b.textContent = next === 'dark' ? 'light' : 'dark';
+    });
+  }
+  (function initThemeBtn(){
+    var cur = document.documentElement.getAttribute('data-theme') || 'light';
+    document.querySelectorAll('.icon-btn').forEach(function(b){
+      if (b.textContent === 'dark' || b.textContent === 'light')
+        b.textContent = cur === 'dark' ? 'light' : 'dark';
+    });
+  })();
+</script>
+</body>
 </html>

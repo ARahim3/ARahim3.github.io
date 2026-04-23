@@ -1,123 +1,101 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta
-            name="description"
-            content="Resume of Abdur Rahim - Senior AI Engineer"
-        />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Resume of Abdur Rahim — Senior AI Engineer" />
 
-        <!-- Open Graph / Social Media Preview -->
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://arahim3.github.io/resume.html" />
-        <meta property="og:title" content="Resume - Abdur Rahim" />
-        <meta
-            property="og:description"
-            content="Senior AI Engineer specializing in voice AI and LLM systems. Experience with Pipecat, vLLM, and production voice agents."
-        />
-        <meta property="og:image" content="https://arahim3.github.io/social-card.png" />
+  <!-- Open Graph / Social Media Preview -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://arahim3.github.io/resume.html" />
+  <meta property="og:title" content="Resume — Abdur Rahim" />
+  <meta property="og:description" content="Senior AI Engineer specializing in voice AI and LLM systems. Experience with Pipecat, vLLM, and production voice agents." />
+  <meta property="og:image" content="https://arahim3.github.io/social-card.png" />
 
-        <!-- Twitter Card -->
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta property="twitter:domain" content="arahim3.github.io" />
-        <meta property="twitter:url" content="https://arahim3.github.io/resume.html" />
-        <meta name="twitter:title" content="Resume - Abdur Rahim" />
-        <meta
-            name="twitter:description"
-            content="Senior AI Engineer specializing in voice AI and LLM systems. Experience with Pipecat, vLLM, and production voice agents."
-        />
-        <meta name="twitter:image" content="https://arahim3.github.io/social-card.png" />
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta property="twitter:domain" content="arahim3.github.io" />
+  <meta property="twitter:url" content="https://arahim3.github.io/resume.html" />
+  <meta name="twitter:title" content="Resume — Abdur Rahim" />
+  <meta name="twitter:description" content="Senior AI Engineer specializing in voice AI and LLM systems. Experience with Pipecat, vLLM, and production voice agents." />
+  <meta name="twitter:image" content="https://arahim3.github.io/social-card.png" />
 
-        <title>Resume - Abdur Rahim</title>
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <script>
-            (function () {
-                if (localStorage.getItem("theme") === "dark") {
-                    document.documentElement.setAttribute(
-                        "data-theme",
-                        "dark"
-                    );
-                }
-            })();
-            function toggleTheme() {
-                var html = document.documentElement;
-                if (html.getAttribute("data-theme") === "dark") {
-                    html.removeAttribute("data-theme");
-                    localStorage.setItem("theme", "light");
-                } else {
-                    html.setAttribute("data-theme", "dark");
-                    localStorage.setItem("theme", "dark");
-                }
-            }
-        </script>
-        <link rel="stylesheet" href="style.css" />
-        <style>
-            .download-section {
-                text-align: center;
-                margin: 40px 0 30px 0;
-            }
+  <title>Resume — Abdur Rahim</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-            .download-section a {
-                display: inline-block;
-                padding: 10px 20px;
-                border: 1px solid currentColor;
-                text-decoration: none;
-            }
+  <script>
+    (function () {
+      var t = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
 
-            .pdf-container {
-                border: 1px solid currentColor;
-                width: 100%;
-                height: 800px;
-                margin-bottom: 40px;
-            }
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
 
-            .pdf-container iframe {
-                width: 100%;
-                height: 100%;
-                border: none;
-                background: #fff;
-            }
+<div class="page">
+  <header class="site-header">
+    <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait" />
+    <div class="name-block">
+      <div class="name"><a href="/">abdur rahim</a><span class="cursor"></span></div>
+      <div class="tag">senior ai engineer · bangladesh → remote</div>
+    </div>
+    <div class="hdr-actions">
+      <button class="icon-btn" onclick="toggleTheme()">dark</button>
+    </div>
+  </header>
 
-            @media (max-width: 600px) {
-                .pdf-container {
-                    height: 600px;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <header>
-            <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait-small" />
-            <h1><a href="/">Abdur Rahim</a></h1>
-            <p>Senior AI Engineer • Voice AI • LLMs</p>
-            <button
-                class="theme-toggle"
-                onclick="toggleTheme()"
-                aria-label="Toggle dark mode"
-            ></button>
-        </header>
+  <nav class="main-nav">
+    <a href="/"><span class="num">01</span>home</a>
+    <a href="/about.html"><span class="num">02</span>about</a>
+    <a href="/projects.html"><span class="num">03</span>projects</a>
+    <a href="/blog.html"><span class="num">04</span>writing</a>
+    <a href="/resume.html" class="active"><span class="num">05</span>resume</a>
+  </nav>
 
-        <nav>
-            <a href="/">Home</a>
-            <a href="/about.html">About</a>
-            <a href="/blog.html">Blog</a>
-            <a href="/projects.html">Projects</a>
-            <a href="/resume.html">Resume</a>
-        </nav>
+  <div class="section-head">
+    <h2>Resume</h2>
+    <span class="meta">updated apr 2026</span>
+  </div>
 
-        <main>
-            <div class="download-section">
-                <a href="/Resume_Abdur_Rahim.pdf" download>Download Resume (PDF) →</a>
-            </div>
+  <div class="resume-actions">
+    <a href="/Resume_Abdur_Rahim.pdf" download class="icon-btn">↓ download pdf</a>
+    <a href="/Resume_Abdur_Rahim.pdf" target="_blank" class="icon-btn">↗ open pdf</a>
+  </div>
 
-            <div class="pdf-container">
-                <iframe src="/Resume_Abdur_Rahim.pdf" title="Resume PDF"></iframe>
-            </div>
-        </main>
+  <div class="pdf-frame-wrap">
+    <iframe src="/Resume_Abdur_Rahim.pdf" title="Resume PDF"></iframe>
+  </div>
 
-        <footer>
-            <p>© 2026 Abdur Rahim</p>
-        </footer>
-    </body>
+  <footer class="site-footer">
+    <span>© 2026 Abdur Rahim</span>
+    <span><a href="/">← home</a></span>
+  </footer>
+</div>
+
+<script>
+  function toggleTheme() {
+    var h = document.documentElement;
+    var cur = h.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    h.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch(e){}
+    document.querySelectorAll('.icon-btn').forEach(function(b){
+      if (b.textContent === 'dark' || b.textContent === 'light')
+        b.textContent = next === 'dark' ? 'light' : 'dark';
+    });
+  }
+  (function initThemeBtn(){
+    var cur = document.documentElement.getAttribute('data-theme') || 'light';
+    document.querySelectorAll('.icon-btn').forEach(function(b){
+      if (b.textContent === 'dark' || b.textContent === 'light')
+        b.textContent = cur === 'dark' ? 'light' : 'dark';
+    });
+  })();
+</script>
+</body>
 </html>
