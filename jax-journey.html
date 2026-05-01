@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Notes on learning to think in JAX — from autodiff and tracing to Pallas kernels. A synthesis of the JAX ecosystem and Google's scaling-book." />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://arahim3.github.io/jax-journey.html" />
+  <meta property="og:title" content="My JAX Journey — Abdur Rahim" />
+  <meta property="og:description" content="A long-form personal field guide to JAX, hardware, and the modern LLM stack." />
+  <meta property="og:image" content="https://arahim3.github.io/jax-journey-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="My JAX Journey — a long-form personal field guide by Abdur Rahim. Notes on learning to think in JAX, from autodiff and the roofline to Pallas kernels." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta property="twitter:domain" content="arahim3.github.io" />
+  <meta property="twitter:url" content="https://arahim3.github.io/jax-journey.html" />
+  <meta name="twitter:title" content="My JAX Journey — Abdur Rahim" />
+  <meta name="twitter:description" content="A long-form personal field guide to JAX, hardware, and the modern LLM stack." />
+  <meta name="twitter:image" content="https://arahim3.github.io/jax-journey-card.png" />
+
+  <title>My JAX Journey — Abdur Rahim</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="256x256" href="/favicon-256.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- KaTeX for math -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+
+  <!-- highlight.js base (theme overridden below per data-theme) -->
+  <link id="hljs-light" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/github.min.css">
+  <link id="hljs-dark" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/github-dark.min.css" disabled>
+
+  <script>
+    (function () {
+      var t = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/style.css" />
+
+  <!-- Guide-specific styles -->
+  <style>
+    /* The shell wraps both the TOC sidebar and the main column.
+       On wide screens it becomes a CSS grid (TOC | content) that's
+       centered as one unit — this keeps the right gutter from looking
+       empty on big monitors. On narrow it collapses to a single column
+       and the mobile drawer TOC takes over. */
+    .guide-shell {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 24px 140px;
+    }
+    .guide-main { min-width: 0; }   /* prevent grid blowout */
+    .guide-main > * { /* match the inner styles existing pages get from .page */ }
+
+    @media (min-width: 1140px) {
+      .guide-shell {
+        max-width: 1024px;
+        display: grid;
+        grid-template-columns: 216px minmax(0, 1fr);
+        gap: 48px;
+        align-items: start;
+        /* animated grid columns are supported in all current browsers */
+        transition: grid-template-columns .35s cubic-bezier(.4,0,.2,1),
+                    gap .35s cubic-bezier(.4,0,.2,1);
+      }
+      /* collapsed state: TOC column squeezes to zero, main fills + recenters
+         (otherwise content sits left-aligned and the right gutter looks empty) */
+      .guide-shell.toc-collapsed {
+        grid-template-columns: 0 minmax(0, 1fr);
+        gap: 0;
+      }
+      .guide-shell.toc-collapsed aside.toc-sticky {
+        opacity: 0;
+        pointer-events: none;
+      }
+      /* When TOC is hidden, recenter the main column AND its inner prose
+         elements so paragraphs sit in the middle of the viewport rather
+         than left-aligned in a too-wide column. */
+      .guide-shell.toc-collapsed .guide-main {
+        max-width: 760px;
+        margin: 0 auto;
+      }
+      .guide-shell.toc-collapsed .guide-prose p,
+      .guide-shell.toc-collapsed .guide-prose ul,
+      .guide-shell.toc-collapsed .guide-prose ol,
+      .guide-shell.toc-collapsed .guide-prose blockquote {
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
+
+    /* reading progress */
+    .progress {
+      position: fixed; top: 0; left: 0;
+      width: 0; height: 2px;
+      background: var(--accent);
+      z-index: 100;
+      transition: width .08s linear;
+    }
+
+    /* hero override for guide */
+    .guide-hero { margin-bottom: 36px; }
+    .guide-hero h1 {
+      font-family: var(--font-prose);
+      font-weight: 500;
+      font-size: clamp(32px, 5vw, 44px);
+      line-height: 1.15;
+      letter-spacing: -0.015em;
+      color: var(--ink);
+      margin-bottom: 18px;
+      text-wrap: balance;
+    }
+    .guide-hero h1 em {
+      font-style: italic;
+      color: var(--accent-ink);
+    }
+    .guide-hero .lede {
+      font-family: var(--font-prose);
+      font-size: 17px;
+      line-height: 1.55;
+      color: var(--ink-soft);
+      max-width: 60ch;
+      text-wrap: pretty;
+    }
+
+    /* attribution callout, modeled on .now */
+    .attribution {
+      background: var(--bg-alt);
+      padding: 18px 22px;
+      border-left: 2px solid var(--accent);
+      margin: 0 0 36px;
+      font-family: var(--font-prose);
+      font-size: 14.5px;
+      line-height: 1.6;
+      color: var(--ink-soft);
+    }
+    .attribution .label {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--accent-ink);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .attribution a {
+      color: var(--ink);
+      border-bottom: 1px solid var(--rule);
+    }
+    .attribution a:hover { color: var(--accent-ink); border-color: var(--accent); }
+
+    /* mobile TOC drawer */
+    details.toc-mobile {
+      margin: 0 0 36px;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      padding: 10px 0;
+    }
+    details.toc-mobile > summary {
+      list-style: none;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    details.toc-mobile > summary::-webkit-details-marker { display: none; }
+    details.toc-mobile > summary::after {
+      content: '+';
+      font-size: 16px;
+      color: var(--ink-dim);
+    }
+    details.toc-mobile[open] > summary::after { content: '−'; }
+    details.toc-mobile ol {
+      list-style: none;
+      padding: 14px 0 4px;
+      counter-reset: chapter;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    details.toc-mobile li { padding: 3px 0; }
+    details.toc-mobile li.toc-h1 {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-top: 14px;
+      padding-bottom: 4px;
+    }
+    details.toc-mobile li.toc-h1:first-child { margin-top: 0; }
+    details.toc-mobile li.toc-h2 {
+      padding-left: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    details.toc-mobile a {
+      color: var(--ink-soft);
+      border: none;
+      display: block;
+      padding: 2px 0;
+    }
+    details.toc-mobile a:hover { color: var(--accent-ink); }
+
+    /* TOC: lives in the grid as a sticky left column on wide screens,
+       hidden on narrow (mobile drawer takes over). */
+    aside.toc-sticky {
+      display: none;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.6;
+      padding: 8px 0;
+      overflow-x: hidden;        /* hide horizontal during collapse animation */
+      transition: opacity .25s ease;
+    }
+    aside.toc-sticky::-webkit-scrollbar { width: 4px; }
+    aside.toc-sticky::-webkit-scrollbar-track { background: transparent; }
+    aside.toc-sticky::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 2px; }
+    aside.toc-sticky .toc-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px 12px 12px;
+      border-bottom: 1px solid var(--rule-soft);
+      margin-bottom: 10px;
+    }
+    aside.toc-sticky .toc-label {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+    aside.toc-sticky .toc-collapse-btn {
+      background: transparent;
+      border: none;
+      color: var(--ink-dim);
+      font-family: var(--font-mono);
+      font-size: 15px;
+      line-height: 1;
+      padding: 2px 8px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: color .15s, background .15s;
+    }
+    aside.toc-sticky .toc-collapse-btn:hover {
+      color: var(--accent-ink);
+      background: var(--bg-alt);
+    }
+    aside.toc-sticky ol { list-style: none; padding: 0 12px; }
+    aside.toc-sticky li.toc-h1 {
+      font-size: 10px;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-top: 12px;
+      padding: 2px 0;
+    }
+    aside.toc-sticky li.toc-h1:first-child { margin-top: 0; }
+    aside.toc-sticky li.toc-h2 {
+      padding: 1px 0 1px 10px;
+      border-left: 1px solid var(--rule-soft);
+      margin-left: 2px;
+    }
+    aside.toc-sticky li.toc-h2.active {
+      border-left-color: var(--accent);
+    }
+    aside.toc-sticky a {
+      color: var(--ink-dim);
+      border: none;
+      display: block;
+      padding: 1px 0;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    aside.toc-sticky a:hover { color: var(--accent-ink); }
+    aside.toc-sticky li.toc-h2.active a { color: var(--accent-ink); }
+
+    @media (min-width: 1140px) {
+      aside.toc-sticky {
+        display: block;
+        position: sticky;
+        top: 32px;
+        align-self: start;
+        max-height: calc(100vh - 64px);
+        overflow-y: auto;
+      }
+    }
+
+    /* the rendered guide prose. Font size scales gently with viewport
+       so prose carries visual weight on wide screens without becoming
+       too small on narrow ones. Line-length maxes at 72ch — still
+       inside the canonical 45–75ch comfort range. */
+    .guide-prose {
+      font-family: var(--font-prose);
+      font-size: clamp(16px, calc(14.5px + 0.28vw), 18.5px);
+      line-height: 1.65;
+      color: var(--ink);
+    }
+    .guide-prose > *:first-child { margin-top: 0; }
+    .guide-prose p {
+      margin: 0 0 18px;
+      max-width: 72ch;
+      text-wrap: pretty;
+    }
+    @media (min-width: 1140px) {
+      .guide-prose { line-height: 1.7; }
+    }
+    .guide-prose strong { font-weight: 600; color: var(--ink); }
+    .guide-prose em { font-style: italic; }
+
+    .guide-prose a {
+      color: var(--accent-ink);
+      border-bottom: 1px solid var(--accent-soft);
+    }
+    .guide-prose a:hover { border-color: var(--accent); }
+
+    /* headings */
+    .guide-prose h1 {
+      font-family: var(--font-prose);
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      margin: 72px 0 8px;
+      padding-top: 28px;
+      border-top: 1px solid var(--rule);
+      color: var(--ink);
+    }
+    .guide-prose h1::before {
+      content: 'part';
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent-ink);
+      margin-bottom: 10px;
+    }
+    .guide-prose h2 {
+      font-family: var(--font-prose);
+      font-weight: 500;
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: -0.005em;
+      margin: 48px 0 14px;
+      color: var(--ink);
+    }
+    .guide-prose h3 {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      margin: 32px 0 10px;
+      color: var(--ink);
+    }
+    .guide-prose h4 {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin: 24px 0 8px;
+    }
+
+    /* anchor links on hover */
+    .guide-prose .anchor-link {
+      color: var(--ink-dim);
+      margin-left: 8px;
+      opacity: 0;
+      border: none;
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 0.7em;
+      transition: opacity .15s, color .15s;
+    }
+    .guide-prose h1:hover .anchor-link,
+    .guide-prose h2:hover .anchor-link,
+    .guide-prose h3:hover .anchor-link {
+      opacity: 1;
+    }
+    .guide-prose .anchor-link:hover { color: var(--accent-ink); }
+
+    /* lists */
+    .guide-prose ul, .guide-prose ol {
+      margin: 0 0 18px;
+      padding-left: 24px;
+      max-width: 72ch;
+    }
+    .guide-prose li { margin-bottom: 6px; line-height: 1.6; }
+    .guide-prose ul li::marker { color: var(--ink-dim); }
+    .guide-prose ol li::marker { color: var(--ink-dim); font-family: var(--font-mono); font-size: 0.9em; }
+
+    /* blockquote */
+    .guide-prose blockquote {
+      margin: 22px 0;
+      padding: 6px 18px;
+      border-left: 2px solid var(--accent);
+      background: var(--bg-alt);
+      font-style: italic;
+      color: var(--ink-soft);
+      max-width: 72ch;
+    }
+    .guide-prose blockquote p { margin-bottom: 8px; }
+    .guide-prose blockquote p:last-child { margin-bottom: 0; }
+
+    /* hr */
+    .guide-prose hr {
+      border: none;
+      border-top: 1px solid var(--rule-soft);
+      margin: 48px 0;
+    }
+
+    /* code: inline */
+    .guide-prose code {
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+      background: var(--bg-alt);
+      padding: 1px 5px;
+      border-radius: var(--radius);
+      color: var(--ink);
+      border: 1px solid var(--rule-soft);
+    }
+
+    /* code: blocks */
+    .guide-prose pre {
+      margin: 22px 0;
+      padding: 16px 18px;
+      background: var(--bg-alt);
+      border: 1px solid var(--rule-soft);
+      border-left: 2px solid var(--rule);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+    .guide-prose pre code {
+      background: transparent;
+      padding: 0;
+      border: none;
+      font-size: inherit;
+      color: inherit;
+    }
+    .guide-prose pre::-webkit-scrollbar { height: 6px; }
+    .guide-prose pre::-webkit-scrollbar-track { background: transparent; }
+    .guide-prose pre::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+
+    /* tables */
+    .guide-prose table {
+      border-collapse: collapse;
+      margin: 22px 0;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      max-width: 100%;
+      display: block;
+      overflow-x: auto;
+    }
+    .guide-prose thead { border-bottom: 1px solid var(--rule); }
+    .guide-prose th {
+      text-align: left;
+      font-weight: 500;
+      color: var(--ink-dim);
+      letter-spacing: 0.04em;
+      padding: 8px 14px 8px 0;
+    }
+    .guide-prose td {
+      padding: 6px 14px 6px 0;
+      border-bottom: 1px solid var(--rule-soft);
+      color: var(--ink-soft);
+      vertical-align: top;
+    }
+    .guide-prose tr:last-child td { border-bottom: none; }
+
+    /* math */
+    .guide-prose .katex-display {
+      margin: 22px 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 4px 0;
+    }
+    .guide-prose .katex { font-size: 1.05em; }
+
+    /* highlight.js color tweaks to harmonize with the palette */
+    [data-theme="light"] .hljs { background: var(--bg-alt); color: var(--ink); }
+    [data-theme="dark"]  .hljs { background: var(--bg-alt); color: var(--ink); }
+
+    /* loading state */
+    .guide-loading {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--ink-dim);
+      letter-spacing: 0.06em;
+      padding: 60px 0;
+      text-align: center;
+    }
+    .guide-loading .dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-left: 6px;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    /* floating action buttons — both bottom corners, same minimal style */
+    .fab {
+      position: fixed;
+      background: var(--bg);
+      border: 1px solid var(--rule);
+      color: var(--ink-soft);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: opacity .2s, color .15s, border-color .15s, background .15s;
+      z-index: 60;
+    }
+    .fab:hover { color: var(--accent-ink); border-color: var(--accent); }
+    /* theme toggle: top-right, mirroring the in-header button position
+       so it stays where the eye expects it as you scroll */
+    .theme-fab {
+      top: 22px; right: 22px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .theme-fab.visible { opacity: 1; pointer-events: auto; }
+    /* TOC toggle: appears at top-left ONLY when the sidebar is collapsed,
+       as a "show contents" affordance. While the sidebar is open, the
+       in-sidebar `‹` button is the close control instead. */
+    .toc-toggle {
+      top: 22px;
+      left: 22px;
+      display: none;
+    }
+    @media (min-width: 1140px) {
+      .guide-shell.toc-collapsed ~ .toc-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+    }
+    /* back to top: bottom-right, the conventional spot */
+    .to-top {
+      right: 22px; bottom: 22px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .to-top.visible { opacity: 1; pointer-events: auto; }
+
+    @media (max-width: 640px) {
+      .guide-hero h1 { font-size: 28px; }
+      .guide-prose { font-size: 16px; }
+      .guide-prose h1 { font-size: 24px; margin-top: 56px; }
+      .guide-prose h2 { font-size: 19px; margin-top: 36px; }
+      .guide-prose pre { font-size: 11.5px; padding: 14px; }
+      .theme-fab { top: 14px; right: 14px; }
+      .to-top { right: 14px; bottom: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+
+  <div class="guide-shell">
+    <aside class="toc-sticky" id="tocSticky" aria-label="contents">
+      <div class="toc-head">
+        <span class="toc-label">contents</span>
+        <button class="toc-collapse-btn" onclick="toggleTOC()" aria-label="hide contents" title="hide contents">‹</button>
+      </div>
+      <ol id="tocList"></ol>
+    </aside>
+
+    <main class="guide-main">
+    <header class="site-header">
+      <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait" />
+      <div class="name-block">
+        <div class="name"><a href="/">abdur rahim</a><span class="cursor"></span></div>
+        <div class="tag">senior ai engineer · bangladesh → remote</div>
+      </div>
+      <div class="hdr-actions">
+        <button class="icon-btn" onclick="toggleTheme()">dark</button>
+      </div>
+    </header>
+
+    <nav class="main-nav">
+      <a href="/"><span class="num">01</span>home</a>
+      <a href="/about.html"><span class="num">02</span>about</a>
+      <a href="/projects.html"><span class="num">03</span>projects</a>
+      <a href="/blog.html" class="active"><span class="num">04</span>writing</a>
+      <a href="/resume.html"><span class="num">05</span>resume</a>
+    </nav>
+
+    <div class="section-head">
+      <h2>Writing</h2>
+      <span class="meta">essay · living document</span>
+    </div>
+
+    <div class="guide-hero">
+      <h1>my <em>jax journey</em></h1>
+      <p class="lede">
+        Notes on learning to think in JAX — from autodiff and tracing,
+        through the hardware substrate underneath, to the modern LLM stack
+        and writing Pallas kernels. A synthesis I keep updated for myself,
+        published in case it's useful to anyone walking the same path.
+      </p>
+    </div>
+
+    <dl class="about-meta">
+      <dt>updated</dt>
+      <dd>may 2026</dd>
+      <dt>length</dt>
+      <dd>35 chapters <em>across 7 parts</em></dd>
+      <dt>covers</dt>
+      <dd>JAX paradigm · TPU/GPU hardware · Flax NNX · sharding · LLMs · Pallas</dd>
+      <dt>format</dt>
+      <dd>living document <em>— I revise as the ecosystem moves</em></dd>
+    </dl>
+
+    <div class="attribution">
+      <span class="label">sources &amp; attribution</span>
+      Most of the technical content is synthesized from primary sources I'm grateful to. The framing of the roofline, sharding math, and TPU/GPU chapters leans heavily on Google's open
+      <a href="https://jax-ml.github.io/scaling-book/">"How to Scale Your Model"</a> book — verbatim equations are reproduced with attribution. The ecosystem chapters draw from the
+      <a href="https://docs.jax.dev/">JAX docs</a>,
+      <a href="https://flax.readthedocs.io/">Flax</a>,
+      <a href="https://docs.jax.dev/en/latest/pallas/">Pallas</a>,
+      <a href="https://google-grain.readthedocs.io/">Grain</a>, and
+      <a href="https://orbax.readthedocs.io/">Orbax</a> documentation. The LLM-stack chapters lean on landmark papers
+      (FlashAttention, RoPE/YaRN, Switch/Mixtral, μP, speculative decoding) cited inline at point of use.
+      My contribution is the synthesis, the ordering, the worked examples, and any errors.
+    </div>
+
+    <details class="toc-mobile" id="tocMobile">
+      <summary>contents · 35 chapters</summary>
+      <ol id="tocListMobile"></ol>
+    </details>
+
+    <article id="content" class="guide-prose">
+      <div class="guide-loading">loading the guide<span class="dot"></span></div>
+    </article>
+
+    <footer class="site-footer">
+      <span>© 2026 Abdur Rahim</span>
+      <span><a href="/blog.html">← writing</a> · <a href="/">home</a></span>
+    </footer>
+    </main>
+  </div>
+
+  <button class="fab toc-toggle" id="tocToggle" onclick="toggleTOC()" aria-label="show contents" title="show contents">contents ›</button>
+  <button class="fab theme-fab icon-btn" id="themeFab" onclick="toggleTheme()" aria-label="toggle theme">dark</button>
+  <button class="fab to-top" id="toTop" aria-label="back to top">↑ top</button>
+
+  <!-- libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <!-- highlight.js bundled with ~36 common languages (incl. python, bash, js, json, yaml) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+
+  <script>
+    /* theme toggle (same pattern as the rest of the site) */
+    function applyHljsTheme() {
+      var t = document.documentElement.getAttribute('data-theme') || 'light';
+      var light = document.getElementById('hljs-light');
+      var dark  = document.getElementById('hljs-dark');
+      if (light) light.disabled = (t === 'dark');
+      if (dark)  dark.disabled  = (t !== 'dark');
+    }
+    function toggleTheme() {
+      var h = document.documentElement;
+      var cur = h.getAttribute('data-theme');
+      var next = cur === 'dark' ? 'light' : 'dark';
+      h.setAttribute('data-theme', next);
+      try { localStorage.setItem('theme', next); } catch(e){}
+      document.querySelectorAll('.icon-btn').forEach(function(b){
+        if (b.textContent === 'dark' || b.textContent === 'light')
+          b.textContent = next === 'dark' ? 'light' : 'dark';
+      });
+      applyHljsTheme();
+    }
+    (function initThemeBtn(){
+      var cur = document.documentElement.getAttribute('data-theme') || 'light';
+      document.querySelectorAll('.icon-btn').forEach(function(b){
+        if (b.textContent === 'dark' || b.textContent === 'light')
+          b.textContent = cur === 'dark' ? 'light' : 'dark';
+      });
+      applyHljsTheme();
+    })();
+
+    /* slugify a heading text -> stable id */
+    function slugify(s) {
+      return s.toLowerCase()
+        .replace(/[^\w\s.-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    }
+
+    /* core: fetch markdown, render, post-process */
+    async function loadGuide() {
+      var article = document.getElementById('content');
+      var mdText;
+      try {
+        var res = await fetch('jax-mastery.md', { cache: 'no-cache' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        mdText = await res.text();
+      } catch (e) {
+        article.innerHTML = '<p style="color: var(--ink-soft); font-family: var(--font-mono); font-size: 13px;">'
+          + 'could not load <code>jax-mastery.md</code> (' + e.message + '). '
+          + 'place the markdown file next to this html.'
+          + '</p>';
+        return;
+      }
+
+      /* drop the very first H1 ("JAX Mastery") since the hero already shows the title */
+      mdText = mdText.replace(/^# JAX Mastery[^\n]*\n+([^\n]*\n)?/, '');
+      /* and the trailing italic "End of guide." marker */
+      mdText = mdText.replace(/\n*\*End of guide\.\*\s*$/, '\n');
+
+      /* The classic problem: markdown processing mangles LaTeX before KaTeX sees it
+         (turns `\_` into `_`, gobbles `*`, etc.). Fix: extract $$...$$ and $...$
+         BEFORE marked runs, render them with KaTeX directly, then splice the
+         results back into the rendered HTML. */
+      var mathBlocks = [];
+      function stash(content, display) {
+        var i = mathBlocks.length;
+        mathBlocks.push({ content: content, display: display });
+        return ' MATH' + i + ' ';
+      }
+
+      /* protect fenced code blocks first so a stray $ inside code is safe */
+      var codeBlocks = [];
+      mdText = mdText.replace(/```[\s\S]*?```/g, function(m) {
+        codeBlocks.push(m);
+        return 'CODE' + (codeBlocks.length - 1) + '';
+      });
+      /* and inline backtick spans */
+      mdText = mdText.replace(/`[^`\n]+`/g, function(m) {
+        codeBlocks.push(m);
+        return 'CODE' + (codeBlocks.length - 1) + '';
+      });
+
+      /* now safe to grab math */
+      mdText = mdText.replace(/\$\$([\s\S]+?)\$\$/g, function(_, inner) {
+        return stash(inner, true);
+      });
+      mdText = mdText.replace(/(^|[^\\$])\$([^\$\n]+?)\$(?!\d)/g, function(_, pre, inner) {
+        return pre + stash(inner, false);
+      });
+
+      /* restore code blocks */
+      mdText = mdText.replace(/CODE(\d+)/g, function(_, i) {
+        return codeBlocks[+i];
+      });
+
+      marked.setOptions({ gfm: true, breaks: false });
+
+      var html;
+      try {
+        html = marked.parse(mdText);
+      } catch (e) {
+        console.error('marked parse error', e);
+        article.innerHTML = '<p style="color: var(--ink-soft); font-family: var(--font-mono); font-size: 13px;">'
+          + 'render error: ' + (e && e.message ? e.message : String(e))
+          + '</p>';
+        return;
+      }
+
+      /* splice rendered math back into the HTML */
+      html = html.replace(/ MATH(\d+) /g, function(_, i) {
+        var block = mathBlocks[+i];
+        try {
+          return katex.renderToString(block.content, {
+            displayMode: block.display,
+            throwOnError: false,
+            strict: false,
+            output: 'html'
+          });
+        } catch (e) {
+          return '<span class="katex-error" title="' + (e.message || '').replace(/"/g, '&quot;') + '">'
+            + (block.display ? '$$' : '$')
+            + block.content
+            + (block.display ? '$$' : '$')
+            + '</span>';
+        }
+      });
+
+      article.innerHTML = html;
+
+      /* highlight every fenced code block */
+      article.querySelectorAll('pre code').forEach(function(block){
+        try { hljs.highlightElement(block); } catch(e) { /* ignore */ }
+      });
+
+      /* assign stable IDs + anchor-link icons to headings */
+      var seen = {};
+      article.querySelectorAll('h1, h2, h3').forEach(function(h){
+        var raw = h.textContent.trim();
+        var slug = slugify(raw);
+        if (!slug) return;
+        if (seen[slug]) { slug = slug + '-' + (++seen[slug]); }
+        else { seen[slug] = 1; }
+        h.id = slug;
+        var a = document.createElement('a');
+        a.className = 'anchor-link';
+        a.href = '#' + slug;
+        a.setAttribute('aria-label', 'permalink');
+        a.textContent = '#';
+        h.appendChild(a);
+      });
+
+      /* build TOC from h1 (Parts) and h2 (Chapters) */
+      buildTOC(article);
+
+      /* if URL has a hash, jump to it now that ids exist */
+      if (location.hash) {
+        var t = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+        if (t) t.scrollIntoView({ behavior: 'instant', block: 'start' });
+      }
+
+      /* set up scroll-spy for desktop TOC */
+      setupScrollSpy(article);
+    }
+
+    function buildTOC(article) {
+      var headings = article.querySelectorAll('h1, h2');
+      var listD = document.getElementById('tocList');
+      var listM = document.getElementById('tocListMobile');
+      headings.forEach(function(h){
+        if (!h.id) return;
+        var label = h.textContent.replace(/#$/, '').trim();
+        var liD = document.createElement('li');
+        var liM = document.createElement('li');
+        liD.className = liM.className = 'toc-' + h.tagName.toLowerCase();
+        liD.dataset.target = liM.dataset.target = h.id;
+        var aD = document.createElement('a');
+        var aM = document.createElement('a');
+        aD.href = aM.href = '#' + h.id;
+        aD.textContent = aM.textContent = label;
+        liD.appendChild(aD);
+        liM.appendChild(aM);
+        listD.appendChild(liD);
+        listM.appendChild(liM);
+      });
+      /* close mobile drawer on click */
+      listM.addEventListener('click', function(){
+        document.getElementById('tocMobile').open = false;
+      });
+    }
+
+    /* Scroll the TOC sidebar so the active item is visible.
+       Only adjusts when needed (active item already visible → no-op).
+       Smooth-scrolls the sidebar without affecting the page scroll. */
+    function ensureActiveTOCVisible() {
+      var sidebar = document.querySelector('aside.toc-sticky');
+      if (!sidebar) return;
+      /* skip if collapsed */
+      if (document.querySelector('.guide-shell').classList.contains('toc-collapsed')) return;
+      var active = sidebar.querySelector('li.active');
+      if (!active) return;
+      var sRect = sidebar.getBoundingClientRect();
+      var aRect = active.getBoundingClientRect();
+      var pad = 60;
+      if (aRect.top < sRect.top + pad) {
+        sidebar.scrollTo({
+          top: sidebar.scrollTop - (sRect.top + pad - aRect.top),
+          behavior: 'smooth'
+        });
+      } else if (aRect.bottom > sRect.bottom - pad) {
+        sidebar.scrollTo({
+          top: sidebar.scrollTop + (aRect.bottom - sRect.bottom + pad),
+          behavior: 'smooth'
+        });
+      }
+    }
+
+    function setupScrollSpy(article) {
+      var headings = Array.from(article.querySelectorAll('h2'));
+      if (!headings.length) return;
+      var entries = headings.map(function(h){ return { id: h.id, top: 0 }; });
+      var lastActive = null;
+      function recompute() {
+        entries.forEach(function(e){
+          var el = document.getElementById(e.id);
+          e.top = el ? el.getBoundingClientRect().top + window.scrollY : 0;
+        });
+      }
+      function onScroll() {
+        var y = window.scrollY + 100;
+        var active = entries[0] ? entries[0].id : null;
+        for (var i = 0; i < entries.length; i++) {
+          if (entries[i].top <= y) active = entries[i].id;
+          else break;
+        }
+        if (active !== lastActive) {
+          lastActive = active;
+          document.querySelectorAll('aside.toc-sticky li, details.toc-mobile li').forEach(function(li){
+            li.classList.toggle('active', li.dataset.target === active);
+          });
+          /* keep the active row visible inside the sidebar's own scroll */
+          ensureActiveTOCVisible();
+        }
+        /* reading progress */
+        var doc = document.documentElement;
+        var max = doc.scrollHeight - window.innerHeight;
+        var pct = max > 0 ? Math.min(100, (window.scrollY / max) * 100) : 0;
+        document.getElementById('progress').style.width = pct + '%';
+        /* show floating theme + back-to-top once the in-header controls scroll out */
+        var scrolled = window.scrollY > 280;
+        document.getElementById('themeFab').classList.toggle('visible', scrolled);
+        document.getElementById('toTop').classList.toggle('visible', window.scrollY > 600);
+      }
+      window.addEventListener('resize', recompute, { passive: true });
+      window.addEventListener('scroll', onScroll, { passive: true });
+      recompute();
+      onScroll();
+    }
+
+    /* TOC collapse/expand with localStorage persistence.
+       Two buttons, one for each state: a small `‹` next to the label
+       inside the sidebar (close), and a top-left fab `contents ›`
+       (open) that only appears when collapsed. Each is statically
+       labeled — no swap on toggle. */
+    function toggleTOC() {
+      var shell = document.querySelector('.guide-shell');
+      shell.classList.toggle('toc-collapsed');
+      var collapsed = shell.classList.contains('toc-collapsed');
+      try { localStorage.setItem('guideTocCollapsed', collapsed ? '1' : '0'); } catch(e) {}
+    }
+    (function initTOCState(){
+      var collapsed = false;
+      try { collapsed = localStorage.getItem('guideTocCollapsed') === '1'; } catch(e){}
+      if (!collapsed) return;
+      var shell = document.querySelector('.guide-shell');
+      /* apply without transition on first paint, then re-enable */
+      shell.style.transition = 'none';
+      shell.classList.add('toc-collapsed');
+      requestAnimationFrame(function(){ shell.style.transition = ''; });
+    })();
+
+    document.getElementById('toTop').addEventListener('click', function(){
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    loadGuide();
+  </script>
+</body>
+</html>
