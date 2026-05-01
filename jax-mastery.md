@@ -445,19 +445,10 @@ $$
 \text{AI}^\star = \frac{\pi}{\beta}
 $$
 
-```
-throughput (FLOP/s)
-   π   ┤        ┌────────────────  compute ceiling
-       │       /
-       │      /
-       │     /
-       │    /  bandwidth ceiling (slope β)
-       │   /
-       │  /
-       │ /
-       │/_______________________________ AI (FLOPs/byte)
-              AI* = π / β
-```
+<figure class="figure">
+  <img src="roofline.svg" alt="Roofline plot on log-log axes. The bandwidth ceiling rises with slope β from low arithmetic intensity, meets the compute ceiling π at the ridge point AI* = π/β, and stays flat at π beyond that. The region left of the ridge is shaded as memory-bound; the region right of the ridge is shaded as compute-bound." />
+  <figcaption>The roofline. Throughput is bandwidth-bound (left) until arithmetic intensity crosses AI★ = π/β, then compute-bound (right). Every operation in deep learning lives somewhere on this plot.</figcaption>
+</figure>
 
 A kernel left of the ridge is **memory-bound**: not enough arithmetic per byte to feed the math units. Doubling its FLOPs costs you nothing — the chip is idle anyway, waiting on HBM. A kernel right of the ridge is **compute-bound**: math units saturated; reducing FLOPs is what speeds it up.
 
