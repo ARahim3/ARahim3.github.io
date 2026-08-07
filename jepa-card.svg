@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&amp;display=swap');
+      text { font-family: 'Newsreader', 'Source Serif 4', Georgia, serif; }
+      .mono { font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="630" fill="#faf8f3"/>
+  <rect x="32" y="32" width="1136" height="566" fill="none" stroke="#d9d2c6" stroke-width="1.5"/>
+
+  <!-- eyebrow -->
+  <rect x="80" y="90" width="36" height="2.5" fill="#2e9d6c"/>
+  <text class="mono" x="128" y="99" font-size="15" font-weight="500" letter-spacing="2.5" fill="#8a8682">FIELD GUIDE</text>
+
+  <!-- title -->
+  <text x="80" y="232" font-size="62" font-weight="500" letter-spacing="-1" fill="#2a2725">JEPA, from first principles</text>
+  <text x="80" y="312" font-size="62" font-weight="500" letter-spacing="-1" fill="#2a2725">to your Mac, with <tspan dx="5" font-style="italic" fill="#1a5d3f">mlx-tune</tspan></text>
+
+  <!-- subtitle -->
+  <text x="80" y="378" font-size="28" font-style="italic" fill="#5e5a58">The intuition from first principles — then train and</text>
+  <text x="80" y="416" font-size="28" font-style="italic" fill="#5e5a58">fine-tune I-JEPA, V-JEPA 2, and LeJEPA on Apple Silicon.</text>
+
+  <!-- ===== motif: collapse → dimensional collapse → isotropic Gaussian ===== -->
+  <g>
+    <!-- complete collapse: a single point -->
+    <circle cx="170" cy="465" r="9" fill="#d9534f"/>
+    <text class="mono" x="170" y="516" font-size="17" letter-spacing="0.5" fill="#8a8682" text-anchor="middle">collapse</text>
+
+    <text class="mono" x="330" y="473" font-size="26" fill="#c5beb3" text-anchor="middle">→</text>
+
+    <!-- dimensional collapse: points on a line -->
+    <g fill="#d29922">
+      <circle cx="485" cy="492" r="6"/><circle cx="503" cy="482" r="6"/><circle cx="521" cy="472" r="6"/>
+      <circle cx="539" cy="462" r="6"/><circle cx="557" cy="452" r="6"/><circle cx="575" cy="442" r="6"/>
+    </g>
+    <text class="mono" x="530" y="516" font-size="17" letter-spacing="0.5" fill="#8a8682" text-anchor="middle">dimensional collapse</text>
+
+    <text class="mono" x="730" y="473" font-size="26" fill="#c5beb3" text-anchor="middle">→</text>
+
+    <!-- isotropic Gaussian: a round cloud -->
+    <g fill="#2e9d6c">
+      <circle cx="884" cy="462" r="6"/><circle cx="892" cy="445" r="6"/><circle cx="906" cy="437" r="6"/>
+      <circle cx="922" cy="440" r="6"/><circle cx="936" cy="446" r="6"/><circle cx="948" cy="456" r="6"/>
+      <circle cx="952" cy="470" r="6"/><circle cx="944" cy="482" r="6"/><circle cx="930" cy="489" r="6"/>
+      <circle cx="914" cy="490" r="6"/><circle cx="898" cy="485" r="6"/><circle cx="888" cy="474" r="6"/>
+      <circle cx="904" cy="458" r="6"/><circle cx="918" cy="455" r="6"/><circle cx="932" cy="462" r="6"/>
+      <circle cx="908" cy="472" r="6"/><circle cx="924" cy="475" r="6"/><circle cx="938" cy="470" r="6"/>
+    </g>
+    <text class="mono" x="918" y="516" font-size="17" letter-spacing="0.5" fill="#1a5d3f" text-anchor="middle">isotropic gaussian ✓</text>
+  </g>
+
+  <!-- footer -->
+  <line x1="80" y1="540" x2="1120" y2="540" stroke="#ddd6cc" stroke-width="1"/>
+  <text class="mono" x="80" y="576" font-size="17" fill="#2a2725">abdur rahim<tspan fill="#8a8682">  ·  understand + hands-on · mlx-tune</tspan></text>
+  <text class="mono" x="1120" y="576" font-size="17" fill="#8a8682" text-anchor="end">arahim3.github.io/jepa.html</text>
+</svg>

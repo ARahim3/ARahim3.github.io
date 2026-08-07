@@ -6,7 +6,7 @@
 
 ## Preface to this edition
 
-The first edition of this guide, written in 2024, walked through the JAX paradigm, Flax/Haiku, basic sharding, a from-scratch Transformer, and a Kaggle migration story. That edition is still useful — but the field moved.
+The first edition of this guide, written in 2024, walked through the JAX paradigm, Flax/Haiku, basic sharding, a from-scratch Transformer, and a Kaggle migration story. That edition is still useful, but the field moved.
 
 Between then and now (May 2026), several things shifted under our feet:
 
@@ -16,11 +16,11 @@ Between then and now (May 2026), several things shifted under our feet:
 - **Pallas** matured into a real kernel-authoring DSL with two backends (Mosaic-TPU and Mosaic-GPU/Triton). FlashAttention, paged attention, MoE dispatch, and many other production kernels now ship as Pallas reference implementations.
 - The "How to Scale Your Model" book at <https://jax-ml.github.io/scaling-book/> grew a **Part 12: GPUs** that gives the GPU programming model the same treatment the original gave to TPUs.
 - The modern LLM stack now assumes things the old guide didn't even mention: FlashAttention-3, paged KV caches, GQA, RoPE plus YaRN/LongRoPE for long context, MoE with expert parallelism, FP8 training, μP for hyperparameter transfer, and a serving substrate (JetStream, MaxText, AXLearn, Tunix) that is mostly Pallas underneath.
-- Hardware moved too: **H100 → B200**, **TPU v5p → v6 (Trillium)**, with new tensor-core formats (FP4) and a new memory level (TMEM on Blackwell).
+- Hardware moved too: **H100 → B200 → B300 (Blackwell Ultra)**, **TPU v5p → v6e (Trillium) → v7 (Ironwood)**, with new tensor-core formats (FP4) and a new memory level (TMEM on Blackwell). Ironwood, GA since late 2025, is the first TPU built around inference: 192 GB of HBM at 7.4 TB/s, and FP8 in the MXU.
 
-This edition incorporates all of that. It is also more *opinionated* about hardware. The single biggest jump from "I write JAX" to "I make JAX fast" is internalizing the **roofline model** and the architecture it sits on. So Part II is now a stand-alone hardware substrate — TPUs, GPUs, the math of collectives — that the rest of the guide leans on. Every later decision (sharding choice, dtype choice, when to drop to Pallas) traces back to that chapter.
+This edition incorporates all of that. It is also more *opinionated* about hardware. The single biggest jump from "I write JAX" to "I make JAX fast" is internalizing the **roofline model** and the architecture it sits on. So Part II is now a stand-alone hardware substrate (TPUs, GPUs, the math of collectives) that the rest of the guide leans on. Every later decision (sharding choice, dtype choice, when to drop to Pallas) traces back to that chapter.
 
-A note about math. This edition keeps the formulas visible. Roofline expressions, attention math, RoPE rotations, communication-cost equations, parameter and FLOP counts for Transformers, mixed-precision tradeoffs — all of it. Hand-wavy prose about "memory-bound" without the formula behind it builds an opinion, not a mental model. The intent here is the mental model.
+A note about math. This edition keeps the formulas visible. Roofline expressions, attention math, RoPE rotations, communication-cost equations, parameter and FLOP counts for Transformers, mixed-precision tradeoffs: all of it. Hand-wavy prose about "memory-bound" without the formula behind it builds an opinion, not a mental model. The intent here is the mental model.
 
 How to read this guide depends on where you are:
 
@@ -40,17 +40,17 @@ Source notes appear inline as URLs. The "How to Scale Your Model" book is cited 
 
 ### 1.1 The essence of JAX
 
-JAX is a high-performance numerical-computing library for Python, developed at Google Research, designed for modern machine learning and large-scale scientific computation. Its design braids together a familiar NumPy-style API with three transformative capabilities: automatic differentiation, just-in-time (JIT) compilation through the XLA compiler, and composable vectorization and parallelization primitives. The result lifts NumPy-style programming to operate on accelerators (GPUs, TPUs) without changing the surface code.
+JAX is a high-performance numerical-computing library for Python, developed at Google Research for machine learning and large-scale scientific computation. It pairs a familiar NumPy-style API with three capabilities: automatic differentiation, just-in-time (JIT) compilation through the XLA compiler, and composable vectorization and parallelization primitives. The result lets you write NumPy-style code that runs on accelerators (GPUs, TPUs) without changing the surface code.
 
-But "NumPy on accelerators" is the marketing line, not the design. The design is that JAX is an **extensible system for composable function transformations**. Entire Python functions are first-class objects to be analyzed, manipulated, and rewritten. Pass a function to `jax.grad` and you get a new function that computes its gradient. Pass that to `jax.jit` and you get a compiled version. Pass *that* to `jax.vmap` and you get a vectorized version. Pass *that* into `shard_map` and you get a parallel version that runs across devices. Each transformation takes a pure function in and emits a pure function out; the composition just works.
+But "NumPy on accelerators" is only the surface. Underneath, JAX is an **extensible system for composable function transformations**. Entire Python functions are first-class objects that can be analyzed, manipulated, and rewritten. Pass a function to `jax.grad` and you get a new function that computes its gradient. Pass that to `jax.jit` and you get a compiled version. Pass it to `jax.vmap` and you get a vectorized version, and to `shard_map` a parallel version that runs across devices. Each transformation takes a pure function in and emits a pure function out, so they compose.
 
-This "functions-as-data" view is the central pillar. Once you see it, the rest of JAX falls into place — JIT, autodiff, vectorization, sharding all become specialized cases of "rewrite this function under such-and-such interpretation."
+This "functions-as-data" view is the core idea. Once you see it, the rest of JAX follows: JIT, autodiff, vectorization, and sharding all become special cases of "rewrite this function under such-and-such interpretation."
 
-### 1.2 The functional-programming imperative: purity and immutability
+### 1.2 Purity and immutability
 
-To enable transformations, JAX imposes one critical constraint borrowed from functional programming: it operates on **pure functions**. A pure function's output depends solely on its inputs; it relies on no external state and produces no side effects beyond its return value.
+To enable these transformations, JAX relies on one constraint borrowed from functional programming: it operates on **pure functions**. A pure function's output depends only on its inputs; it relies on no external state and produces no side effects beyond its return value.
 
-This principle is enforced through **immutability**. Unlike NumPy arrays, which are mutable and support in-place modification, JAX arrays are immutable:
+This principle is enforced through **immutability**. NumPy arrays are mutable and support in-place modification; JAX arrays do not:
 
 ```python
 import jax.numpy as jnp
@@ -69,7 +69,7 @@ except TypeError as e:
     print(f"JAX rejects mutation: {e}")
 ```
 
-To express an "update," JAX provides a side-effect-free syntax that returns a new array:
+If you want an "update," you ask for a new array and the old one stays put:
 
 ```python
 original = jnp.arange(5)
@@ -78,9 +78,9 @@ updated = original.at[0].set(99)
 # updated is a new array:  [99 1 2 3 4]
 ```
 
-These constraints — purity and immutability — are not pedantic. They are the *prerequisites* for the transformation machinery. When a function is guaranteed pure, its behavior is fully determined by its inputs. JAX exploits this by **tracing**: it runs the function once with abstract "tracer" objects in place of real data, recording each operation those tracers participate in. The recorded program is called a **`jaxpr`** (JAX expression) — a clean, analyzable static representation, stripped of Python's dynamic complexity.
+These constraints are what the transformation machinery is built on. Because a pure function is fully determined by its inputs, JAX can run it once with abstract **tracer** objects in place of real data, recording each operation the tracers take part in. The recorded program is a **`jaxpr`** (JAX expression), a clean static representation stripped of Python's dynamic complexity.
 
-The `jaxpr` is what XLA compiles. It is also what `grad` transposes, what `vmap` lifts to batched dimensions, and what `shard_map` partitions across devices. Without purity, none of those transformations would be sound. The trade is unambiguous: functional discipline up front in exchange for full access to the transformation grammar — and through it, performance and scalability you cannot get any other way.
+The `jaxpr` is what XLA compiles. It's also what `grad` transposes, what `vmap` lifts to batched dimensions, and what `shard_map` partitions across devices. Without purity none of those would be sound. That's the tradeoff: some functional discipline up front, in exchange for the full transformation vocabulary and the performance that comes with it.
 
 ### 1.3 JAX vs. the incumbents
 
@@ -119,7 +119,7 @@ TensorFlow and JAX share Google parentage and the XLA compiler, but they target 
 - **API.** Keras gives TensorFlow a high-level abstraction; JAX leaves the framing to libraries like Flax. Conceptually, TF's graph mode and JAX's tracing are similar (both build a graph for optimization), but JAX's user-facing model is function-first.
 - **Interop.** `jax2tf` exports JAX functions to TF SavedModel for serving. `jax.experimental.export` is the modern path.
 
-A cheat sheet that holds up well in 2026:
+The whole comparison in one table:
 
 | Feature                | NumPy                          | PyTorch                                | TensorFlow                              | JAX                                                         |
 | ---------------------- | ------------------------------ | -------------------------------------- | --------------------------------------- | ----------------------------------------------------------- |
@@ -132,25 +132,25 @@ A cheat sheet that holds up well in 2026:
 | Maturity               | very high                      | very high (research)                   | very high (production)                  | **growing (research + production)**                         |
 | Use case               | general numeric                | rapid research                         | production deployment                   | **high-performance research, scaling, custom algorithms**   |
 
-### 1.4 Purity, side effects, and the "control flow on values" rule
+### 1.4 Why you can't branch on a traced value
 
-Once you accept purity, one practical consequence trips everyone exactly once:
+Purity has one consequence that catches everyone the first time:
 
-> Inside a JIT-compiled (or vmapped, or shard-mapped, or grad-traced) function, **Python control flow cannot depend on the *value* of a traced array.**
+> Inside a `jit` (or `vmap`, or `shard_map`, or `grad`), Python control flow can't depend on the *value* of a traced array.
 
-This is because at trace time the array is a tracer with a known shape and dtype but no concrete value. JAX provides three escape hatches:
+The reason is that during tracing the array isn't there yet: it's a tracer that knows its shape and dtype but carries no concrete value. There are three ways around it:
 
-1. **Mark the argument static** with `jax.jit(..., static_argnames=...)`, so its Python value is available at trace time. The downside: every distinct value triggers a recompile.
-2. **Use JAX's structured control-flow primitives**: `jax.lax.cond`, `jax.lax.switch`, `jax.lax.scan`, `jax.lax.while_loop`. These work inside traced code because they are themselves JAX primitives.
-3. **Refactor** so the value-dependent branch is hoisted out of the traced region.
+1. **Make the argument static** with `jax.jit(..., static_argnames=...)`, which hands its Python value to the trace. The cost is a recompile for every distinct value.
+2. **Use JAX's own control-flow primitives**: `jax.lax.cond`, `jax.lax.switch`, `jax.lax.scan`, `jax.lax.while_loop`. They work inside traced code because they *are* traced code.
+3. **Move the branch out** of the traced region entirely.
 
-The "use `numpy` for what should be static, `jax.numpy` for what should be traced" rule of thumb falls out of this directly. Computing a reshape size from `x.shape` should use plain `np.prod` (the result is a Python int, baked into the compiled program); doing arithmetic on traced arrays should use `jnp.*` (the result becomes part of the graph).
+This is also where the "`numpy` for what's static, `jax.numpy` for what's traced" habit comes from. A reshape size computed from `x.shape` should go through plain `np.prod`, since the result is a Python int that gets baked into the compiled program. Arithmetic on traced arrays goes through `jnp.*`, because that's what you want ending up in the graph.
 
 ---
 
 ## Chapter 2. The Five Pillars: `grad`, `jit`, `vmap`, `shard_map`, `pmap`
 
-JAX's expressiveness rests on a small set of fundamental transformations. The first edition called this "the four pillars"; the modern story has a fifth, `shard_map`, which has displaced `pmap` as the right entry point to multi-device parallelism. We'll cover all five.
+Almost everything JAX can do comes down to a small set of transformations. The first edition of this guide called them "the four pillars"; there's a fifth now, `shard_map`, which has taken over from `pmap` as the place to start for multi-device code. All five are below.
 
 ### 2.1 `jax.grad`: autodiff as a transformation
 
@@ -189,13 +189,13 @@ grad_w = jax.grad(mse, argnums=0)            # w.r.t. weights
 grad_wb = jax.grad(mse, argnums=(0, 1))      # w.r.t. weights AND bias
 ```
 
-`jax.value_and_grad` returns both the loss value (for logging) and gradients in a single forward+backward pass — essential, because computing them separately doubles the forward pass:
+`jax.value_and_grad` returns both the loss value (for logging) and gradients in a single forward+backward pass, which matters because computing them separately doubles the forward pass:
 
 ```python
 loss_val, (w_grads, b_grads) = jax.value_and_grad(mse, argnums=(0, 1))(W, b, X, Y)
 ```
 
-PyTrees — arbitrary nested structures of lists, tuples, dicts, and registered dataclasses — are first-class. `jax.grad` differentiates with respect to a PyTree of parameters and returns a PyTree of gradients with the same structure:
+PyTrees (arbitrary nested structures of lists, tuples, dicts, and registered dataclasses) are first-class. `jax.grad` differentiates with respect to a PyTree of parameters and returns a PyTree of gradients with the same structure:
 
 ```python
 def loss_pytree(params, x, y):
@@ -250,7 +250,7 @@ batched_dot = jax.vmap(dot)            # batches both args along axis 0
 results = batched_dot(batch_v1, batch_v2)
 ```
 
-Crucially, `vmap` does not lower to a Python loop — it pushes the mapped axis *down* into the underlying primitives. A series of matrix-vector products becomes one matrix-matrix product. The performance is identical to a hand-batched implementation.
+Importantly, `vmap` does not lower to a Python loop; it pushes the mapped axis *down* into the underlying primitives. A series of matrix-vector products becomes one matrix-matrix product. The performance is identical to a hand-batched implementation.
 
 `in_axes` controls which axis of each input gets mapped (or whether it should be broadcast):
 
@@ -263,7 +263,7 @@ batched = jax.vmap(linear, in_axes=(None, None, 0))   # broadcast W, b; map x
 
 `in_axes=None` means "broadcast this argument to all batch elements." `in_axes=0` (default) maps along axis 0 of the argument. You can also map along other axes (`in_axes=1`), or specify a PyTree of `in_axes` to map differently across the structure.
 
-A common use of `vmap` over `grad` is computing **per-example gradients** — useful for differential privacy, meta-learning, or just checking that the mean of per-example gradients matches the gradient of the mean loss:
+A common use of `vmap` over `grad` is computing **per-example gradients**, useful for differential privacy, meta-learning, or just checking that the mean of per-example gradients matches the gradient of the mean loss:
 
 ```python
 per_example_loss = lambda params, x_i, y_i: (x_i @ params - y_i) ** 2
@@ -274,7 +274,7 @@ per_ex_grads = batched_grad_fn(params, X, Y)
 
 ### 2.4 `shard_map`: explicit SPMD across devices
 
-`shard_map` (formerly `jax.experimental.shard_map.shard_map`, now exposed as `jax.shard_map` in current JAX) is the **manual / explicit** way to write multi-device code. You declare a `Mesh` of devices, and you write the body of the function as if you are *one device's worth of work* — and then you call collectives by name when you need data from other devices.
+`shard_map` (formerly `jax.experimental.shard_map.shard_map`, now exposed as `jax.shard_map` in current JAX) is the **manual / explicit** way to write multi-device code. You declare a `Mesh` of devices, and you write the body of the function as if you are *one device's worth of work*, then call collectives by name when you need data from other devices.
 
 ```python
 from jax.sharding import Mesh, PartitionSpec as P
@@ -295,7 +295,7 @@ def f(x):
     return x / global_sum
 ```
 
-The mental flip is significant. Outside `shard_map`, when you handle a sharded array, you reason about the *global* shape, and the compiler partitions for you. Inside, you reason about the *local* shape per shard, and you call collectives explicitly.
+This flips how you think about shapes. Outside `shard_map` you reason about the *global* array and let the compiler partition it for you. Inside, you reason about the *local* shard sitting in front of you, and you call collectives by hand when you need the rest.
 
 Collectives available inside `shard_map` (all in `jax.lax`, all parameterized by axis name):
 
@@ -308,7 +308,7 @@ Collectives available inside `shard_map` (all in `jax.lax`, all parameterized by
 - `all_to_all(x, 'axis', split_axis, concat_axis)` — used in MoE expert dispatch.
 - `axis_index('axis')` — this device's index along the mesh axis (the equivalent of MPI rank).
 
-`shard_map` always composes with `jit` — wrap the call in `jax.jit` so the compiled XLA program is the actual artifact. We will return to `shard_map` in depth in Part IV.
+`shard_map` always composes with `jit`: wrap the call in `jax.jit` so the compiled XLA program is the actual artifact. We will return to `shard_map` in depth in Part IV.
 
 ### 2.5 `jax.pmap`: the legacy primitive
 
@@ -339,17 +339,17 @@ The official guidance, and ours: **for new code, use `jit` with `NamedSharding` 
 
 ---
 
-## Chapter 3. Composing Transformations: The Defining Superpower
+## Chapter 3. Composing Transformations
 
-The transformations are powerful individually. They are *transformative* together. Because each transformation takes a pure function and returns a pure function, you can chain, nest, and combine them freely.
+Each transformation is useful on its own. The reason JAX feels different from other frameworks is that they compose: because every transformation takes a pure function and hands back a pure function, you can nest them however the problem needs.
 
-### 3.1 The philosophy of composability
+### 3.1 Why composition works here
 
-In an OO framework, a method call mutates the object, creating side effects that make composition complex. In JAX, `jax.grad(f)` does not alter `f`; it returns a new function `g` which is itself pure and can be passed to `jax.jit`, `jax.vmap`, or another transformation. The result is a "grammar" of computation — complex behaviors emerge from layering simple transformations.
+In an object-oriented framework a method call usually mutates the object, and those side effects are what make composition awkward. `jax.grad(f)` doesn't touch `f`; it returns a new function `g` that is itself pure, so you can pass it straight into `jax.jit`, `jax.vmap`, or another transform. What you get is closer to a grammar than an API: layer a few simple transformations and more involved behavior comes out the other side.
 
 ### 3.2 Common composition patterns
 
-**`jit(grad(...))` — the foundation of any training step.** First create a gradient function, then JIT-compile it so the entire forward+backward pass becomes one XLA kernel:
+**`jit(grad(...))`: the foundation of any training step.** First create a gradient function, then JIT-compile it so the entire forward+backward pass becomes one XLA kernel:
 
 ```python
 def loss(params, x, y):
@@ -360,7 +360,7 @@ grad_loss = jax.jit(jax.grad(loss))
 grads = grad_loss(params, X, Y)   # forward + backward, fused
 ```
 
-**`vmap(grad(...))` — per-example gradients.** Compute gradients for every example in a batch independently:
+**`vmap(grad(...))`: per-example gradients.** Compute gradients for every example in a batch independently:
 
 ```python
 per_ex_loss = lambda p, xi, yi: (xi @ p['W'] + p['b'] - yi) ** 2
@@ -370,14 +370,14 @@ per_ex_grad(params, X, Y)
 # equals jax.grad(loss)(params, X, Y).
 ```
 
-**`jit(vmap(...))` — high-performance batching.** Compose `vmap` for vectorization with `jit` for compilation:
+**`jit(vmap(...))`: high-performance batching.** Compose `vmap` for vectorization with `jit` for compilation:
 
 ```python
 proc_one = lambda x: jnp.tanh(2 * x - 1)
 proc_batch = jax.jit(jax.vmap(proc_one))
 ```
 
-**`jit(shard_map(jit(value_and_grad(...))))` — the multi-device training step.** The outer `jit` compiles the whole thing; `shard_map` distributes across devices; the inner `value_and_grad` computes loss and gradients per shard:
+**`jit(shard_map(jit(value_and_grad(...))))`: the multi-device training step.** The outer `jit` compiles the whole thing; `shard_map` distributes across devices; the inner `value_and_grad` computes loss and gradients per shard:
 
 ```python
 @jax.jit
@@ -404,19 +404,19 @@ When you write `jax.jit(jax.grad(jax.vmap(f)))`, what JAX actually does at compi
 2. Run the `grad` transformation on that `jaxpr`, producing a backward `jaxpr`.
 3. Hand the combined forward-and-backward `jaxpr` to XLA via `jit`, which lowers it to HLO and compiles to device kernels.
 
-Each transformation operates on `jaxpr`s, not on Python source. That is why it doesn't matter how you write the loop, the conditionals, or the data flow inside `f` — what matters is the trace. Two functions that produce the same `jaxpr` will optimize identically.
+Every step works on `jaxpr`s, not on your Python source. That's why the way you write the loop or the branching inside `f` doesn't matter; only the trace does. Two functions that trace to the same `jaxpr` compile to exactly the same thing.
 
-This is the "purity contract" earning its keep. Without purity, transformations would have to model side effects, and the layering would collapse.
+This is purity paying off again. If functions could carry side effects, each transformation would have to model them, and the clean layering would come apart.
 
 ---
 
 # Part II — The Hardware Substrate
 
-You can write JAX for years without ever opening a GPU whitepaper, and your code will run. But there is a wall — somewhere between "training a small Transformer" and "making a 70B model train at 50% MFU" — past which everything depends on hardware. Past that wall, your decisions about sharding, recomputation, fusion, kernel choice, and dtype are all *implicitly* arguments about bytes moved per FLOP and cycles spent waiting on memory.
+You can write JAX for years without ever opening a GPU whitepaper, and your code will run. But somewhere between "training a small Transformer" and "making a 70B model train at 50% MFU" there is a wall, past which everything depends on hardware. Past that wall, your decisions about sharding, recomputation, fusion, kernel choice, and dtype are all *implicitly* arguments about bytes moved per FLOP and cycles spent waiting on memory.
 
 This part gives you the mental model. Read it once and you will start to *predict* what will be slow before you profile.
 
-We build the model in four chapters: the roofline (the one diagram), the TPU, the GPU, and the math of collectives. The pivot point is Chapter 4 — every later chapter in the guide leans on it.
+We build the model in four chapters: the roofline, the TPU, the GPU, and the math of collectives. Chapter 4 is the pivot point; every later chapter in the guide leans on it.
 
 ---
 
@@ -450,7 +450,7 @@ $$
   <figcaption>The roofline. Throughput is bandwidth-bound (left) until arithmetic intensity crosses AI★ = π/β, then compute-bound (right). Every operation in deep learning lives somewhere on this plot.</figcaption>
 </figure>
 
-A kernel left of the ridge is **memory-bound**: not enough arithmetic per byte to feed the math units. Doubling its FLOPs costs you nothing — the chip is idle anyway, waiting on HBM. A kernel right of the ridge is **compute-bound**: math units saturated; reducing FLOPs is what speeds it up.
+A kernel left of the ridge is **memory-bound**: not enough arithmetic per byte to feed the math units. Doubling its FLOPs costs you nothing, since the chip is idle anyway, waiting on HBM. A kernel right of the ridge is **compute-bound**: math units saturated, and reducing FLOPs is what speeds it up.
 
 This model is brutally useful, because (a) it tells you *which knobs even can help you* and (b) the ridge points of every modern accelerator are hundreds of FLOPs per byte. So *almost everything that isn't a big matmul is memory-bound.*
 
@@ -487,7 +487,7 @@ $$
 \text{AI(dot product)} = \frac{2N - 1}{4N + 2} \xrightarrow{N \to \infty} \frac{1}{2}
 $$
 
-Half a FLOP per byte. On any modern hardware, that is *deep* in the memory-bound regime — far below the ridge, and the dot product's throughput is therefore limited by HBM bandwidth, not by FLOPs. This is also why you don't usually write naive dot products: they have nothing to optimize.
+Half a FLOP per byte. On any modern hardware, that is *deep* in the memory-bound regime, far below the ridge, so the dot product's throughput is limited by HBM bandwidth rather than by FLOPs. This is also why you don't usually write naive dot products: they have nothing to optimize.
 
 ### 4.3 The matmul (worked example, compute-bound when big)
 
@@ -503,9 +503,9 @@ $$
 \text{AI} \approx \frac{N^3}{3 N^2} = \frac{N}{3}
 $$
 
-**Arithmetic intensity grows linearly with the matrix dimension.** That is the single most important fact in deep-learning systems. Why we batch, why we love wide hidden dims, why attention in long-context models is a problem — all roofline consequences.
+**Arithmetic intensity grows linearly with the matrix dimension.** This is one of the most important facts in deep-learning systems. Why we batch, why we love wide hidden dims, why attention in long-context models is a problem: all roofline consequences.
 
-Concrete numbers: at $N = 8192$ in bf16, $\text{AI} \approx 2730$ FLOPs/byte. The H100 SXM bf16 ridge point is ~295 FLOPs/byte; TPU v5p's is ~165 FLOPs/byte. We are 9–16× above the ridge — solidly compute-bound, perfect.
+Concrete numbers: at $N = 8192$ in bf16, $\text{AI} \approx 2730$ FLOPs/byte. The H100 SXM bf16 ridge point is ~295 FLOPs/byte; TPU v5p's is ~165 FLOPs/byte. We are 9–16× above the ridge: solidly compute-bound.
 
 But change the shape. The **decode step of an LLM** is one new token times the weight matrix: $m = 1$, $n = k = N$. Now
 
@@ -513,29 +513,30 @@ $$
 \text{AI} \approx \frac{N}{N + 2} \xrightarrow{N \to \infty} 1
 $$
 
-Asymptotically *one* FLOP per byte — two and a half orders of magnitude below the ridge. **Decode is fundamentally memory-bound.** This is the deep reason decode is slow per FLOP. The KV-cache makes it worse, not better. Tensor-parallelism actually *hurts* small-batch decode on a GPU (more on this in Part V). Everyone batches, quantizes, and pages: the only escape is amortizing HBM reads across more work.
+Asymptotically *one* FLOP per byte, two and a half orders of magnitude below the ridge. **Decode is fundamentally memory-bound.** This is the deep reason decode is slow per FLOP, and the KV-cache only makes it worse. Tensor-parallelism actually *hurts* small-batch decode on a GPU (more on this in Part V). Everyone batches, quantizes, and pages; the only escape is amortizing HBM reads across more work.
 
 ### 4.4 The elementwise op (forever memory-bound)
 
-For $z = a \cdot x + b \cdot y$ on $N$-element arrays, $F \sim N$ and $B \sim N$, so $\text{AI} \sim O(1)$ FLOP/byte regardless of $N$. **Elementwise ops are forever memory-bound.** This is why `jit` matters: XLA fuses chains of elementwise ops so intermediates stay in registers/L1 and never touch HBM. Each unfused op pays a full HBM round trip; ten unfused ops pay ten round trips. One fused op pays one. The roofline ceiling does not move — but $B$ shrinks by 10×.
+For $z = a \cdot x + b \cdot y$ on $N$-element arrays, $F \sim N$ and $B \sim N$, so $\text{AI} \sim O(1)$ FLOP/byte regardless of $N$. **Elementwise ops are forever memory-bound.** This is why `jit` matters: XLA fuses chains of elementwise ops so intermediates stay in registers/L1 and never touch HBM. Each unfused op pays a full HBM round trip; ten unfused ops pay ten round trips. One fused op pays one. The roofline ceiling does not move, but $B$ shrinks by 10×.
 
-A useful compass: if your kernel's AI is below ~200 FLOPs/byte on modern hardware, no amount of clever math will save it. You have to move fewer bytes — fuse, tile, recompute, quantize, or change the algorithm.
+A useful compass: if your kernel's AI is below ~200 FLOPs/byte on modern hardware, no amount of clever math will save it. You have to move fewer bytes: fuse, tile, recompute, quantize, or change the algorithm.
 
 ### 4.5 Hardware ridge points (the cheat sheet you carry)
 
 | Hardware | Peak (bf16) | HBM bandwidth | Ridge AI* |
 | --- | --- | --- | --- |
-| TPU v4p | $2.75 \times 10^{14}$ FLOP/s | $1.2 \times 10^{12}$ B/s | ~229 FLOPs/B |
+| TPU v4 | $2.75 \times 10^{14}$ FLOP/s | $1.2 \times 10^{12}$ B/s | ~229 FLOPs/B |
 | TPU v5e | $1.97 \times 10^{14}$ FLOP/s | $8.1 \times 10^{11}$ B/s | ~243 FLOPs/B |
 | TPU v5p | $4.59 \times 10^{14}$ FLOP/s | $2.76 \times 10^{12}$ B/s | ~166 FLOPs/B |
 | TPU v6e (Trillium) | $9.20 \times 10^{14}$ FLOP/s | $1.6 \times 10^{12}$ B/s | ~575 FLOPs/B |
+| TPU v7 (Ironwood) | $2.30 \times 10^{15}$ FLOP/s | $7.4 \times 10^{12}$ B/s | ~311 FLOPs/B |
 | NVIDIA H100 SXM | $9.89 \times 10^{14}$ FLOP/s | $3.35 \times 10^{12}$ B/s | ~295 FLOPs/B |
 | NVIDIA H200 | $9.89 \times 10^{14}$ FLOP/s | $4.8 \times 10^{12}$ B/s | ~206 FLOPs/B |
 | NVIDIA B200 | $2.25 \times 10^{15}$ FLOP/s | $8.0 \times 10^{12}$ B/s | ~281 FLOPs/B |
 
-*Peaks are the matmul ceiling at bf16. FP8/INT8 doubles the FLOP ceiling and halves the byte cost, doubling AI on both axes — net effect, FP8 lets you get away with smaller matmuls before going memory-bound.*
+*Peaks are the matmul ceiling at bf16. FP8/INT8 doubles the FLOP ceiling and halves the byte cost, doubling AI on both axes; net effect, FP8 lets you get away with smaller matmuls before going memory-bound.*
 
-The pattern: ridge points are 100–600 FLOPs/byte. To be compute-bound on a matmul, you need the smallest dimension of (m, n, k) to be roughly the ridge value. That is why "the batch should be at least 240" is a common TPU rule of thumb — it's just the ridge.
+The pattern: ridge points are 100–600 FLOPs/byte. To be compute-bound on a matmul, you need the smallest dimension of (m, n, k) to be roughly the ridge value. That is why "the batch should be at least 240" is a common TPU rule of thumb: it's just the ridge.
 
 ### 4.6 Three communication levels (not one)
 
@@ -546,7 +547,7 @@ The roofline as written above treats memory bandwidth $\beta$ as one number, but
 3. **Inter-chip bandwidth (ICI on TPU, NVLink on GPU intra-node)** ($\sim 100\text{–}900$ GB/s) — between chips inside one slice/node.
 4. **Cross-node bandwidth (DCN on TPU, InfiniBand on GPU)** ($\sim 10\text{–}50$ GB/s) — between hosts/pods.
 
-Each level has its own roofline. A kernel that fits in VMEM with a 22× HBM-VMEM ratio gets a ridge point ~22× lower than HBM-fed operations: a TPU v5e operating purely out of VMEM goes compute-bound on matmuls with batch ~11, not ~243. This is the entire point of writing Pallas kernels — push more of the working set into VMEM/SMEM and you collapse the roofline.
+Each level has its own roofline. A kernel that fits in VMEM with a 22× HBM-VMEM ratio gets a ridge point ~22× lower than HBM-fed operations: a TPU v5e operating purely out of VMEM goes compute-bound on matmuls with batch ~11, not ~243. This is the entire point of writing Pallas kernels: push more of the working set into VMEM/SMEM and you collapse the roofline.
 
 We will see in the next chapters that ICI vs. DCN, and NVLink vs. InfiniBand, are why "TP within node, FSDP across nodes" is a universal mantra on GPUs but TPU pods can do TP across thousands of chips.
 
@@ -554,32 +555,33 @@ We will see in the next chapters that ICI vs. DCN, and NVLink vs. InfiniBand, ar
 
 ## Chapter 5. The TPU
 
-If a GPU is "an army of small SIMT cores chasing a memory hierarchy," a TPU is "one large dataflow engine chasing a memory hierarchy." TPUs simplify dramatically — you can hold a TPU in your head with much less effort.
+If a GPU is "an army of small SIMT cores chasing a memory hierarchy," a TPU is "one large dataflow engine chasing a memory hierarchy." TPUs simplify dramatically, and you can hold a TPU in your head with much less effort.
 
 ### 5.1 The chip
 
-A TPU chip (v4, v5e, v5p, v6e/Trillium) contains:
+A TPU chip (v4, v5e, v5p, v6e/Trillium, v7/Ironwood) contains:
 
 - **One or two TensorCores per chip.** v4 and v5p have 2 TensorCores per chip; v5e and v6e have 1. The two-core chips are presented to XLA as one logical "Megacore" unit with 2× MXU and 2× VPU. From `jax.devices()` you see one device per chip.
 - **MXU (Matrix Multiply Unit)**: a *systolic array* of 128×128 multiply-accumulate cells. v6e (Trillium) doubles to 256×256 on some configurations. One full bf16 matmul tile per cycle, which is the entire reason TPUs exist.
 - **VPU (Vector Processing Unit)**: a 2D SIMD engine of shape (8, 128) with 4 ALUs per (lane, sublane) pair. Does softmax, layernorm, elementwise ops. About one-tenth the FLOP rate of the MXU.
 - **VMEM (Vector Memory)**: ~32 MB of fast on-chip scratchpad, software-managed (no hardware cache eviction surprises). Bandwidth to MXU is ~22× higher than HBM bandwidth.
 - **SMEM**: a smaller scalar memory for indices, sizes, and control state.
-- **HBM**: the off-chip but on-package memory. v5p: 96 GB at 2.76 TB/s; v6e: 32 GB at 1.6 TB/s; v5e: 16 GB at 0.81 TB/s; v4p: 32 GB at 1.2 TB/s.
+- **HBM**: the off-chip but on-package memory. v7 (Ironwood): 192 GB at 7.4 TB/s; v5p: 96 GB at 2.76 TB/s; v6e: 32 GB at 1.6 TB/s; v5e: 16 GB at 0.81 TB/s; v4: 32 GB at 1.2 TB/s.
 
 Per-chip bf16 peak FLOP/s by generation:
 
 | Generation | bf16 FLOP/s | int8 FLOP/s |
 | --- | --- | --- |
 | v3 | 1.4e14 | 1.4e14 |
-| v4p | 2.75e14 | 2.75e14 |
+| v4 | 2.75e14 | 2.75e14 |
 | v5e | 1.97e14 | 3.94e14 |
 | v5p | 4.59e14 | 9.18e14 |
 | v6e | 9.20e14 | 1.84e15 |
+| v7 (Ironwood) | 2.30e15 | 4.61e15 |
 
-### 5.2 Systolic-array intuition (read this twice)
+### 5.2 Systolic-array intuition
 
-Imagine a 128×128 grid of MAC cells. Each cycle, every cell does one multiply-accumulate. A tile of $A$ slides in from the top, one row per cycle; a tile of $B$ slides in from the left, one column per cycle. Partial sums march downward through the grid. After about $128 + 128 + k$ cycles, a full 128×128 output tile of $C = A \cdot B$ exits the bottom — and the next tile starts immediately while the first is still draining.
+Imagine a 128×128 grid of MAC cells. Each cycle, every cell does one multiply-accumulate. A tile of $A$ slides in from the top, one row per cycle; a tile of $B$ slides in from the left, one column per cycle. Partial sums march downward through the grid. After about $128 + 128 + k$ cycles, a full 128×128 output tile of $C = A \cdot B$ exits the bottom, and the next tile starts immediately while the first is still draining.
 
 ```
         A (rows feed down)
@@ -595,15 +597,15 @@ Imagine a 128×128 grid of MAC cells. Each cycle, every cell does one multiply-a
         C (drains out)
 ```
 
-In steady state, every one of the 16,384 cells is multiplying every cycle. There is no instruction fetch, no register-file read, no scheduling — operands literally walk into each cell on a wire. That is the source of the TPU's stunning throughput-per-watt.
+In steady state, every one of the 16,384 cells is multiplying every cycle. There is no instruction fetch, no register-file read, no scheduling; operands literally walk into each cell on a wire. That is where the TPU's throughput-per-watt comes from.
 
-The catch: the array is "alive" only while fully fed. Misaligned shapes — a contracting dim of 96 against a 128-wide MXU — pad to 128 and waste 25% of the array. Padding is silent in your JAX code; the TPU profiler shows you "MXU utilization." This is also why TPU shapes love multiples of 128 (or 256 on Trillium) along the contraction and output axes. If you've ever seen "padded from 96 → 128" in the XLA HLO, that's why.
+The catch: the array is "alive" only while fully fed. Misaligned shapes (a contracting dim of 96 against a 128-wide MXU) pad to 128 and waste 25% of the array. Padding is silent in your JAX code; the TPU profiler shows you "MXU utilization." This is also why TPU shapes love multiples of 128 (or 256 on Trillium) along the contraction and output axes. If you've ever seen "padded from 96 → 128" in the XLA HLO, that's why.
 
 A rule that falls out: for a `bf16[8, 128] @ bf16[128, 128] → f32[8, 128]` matmul on v4/v5, the MXU finishes one tile per **8 cycles**. (One tile = the smallest multiple of 8 along the lane axis × full 128 sublane / lane.) BlockSpecs on TPU should respect this 8×128 multiple structure, which is part of why writing Pallas-TPU kernels feels less like CUDA and more like building a pipeline.
 
 ### 5.3 Latency-from-fill and the small-matmul problem
 
-The systolic array has a pipeline-fill latency of $128 + 128 = 256$ cycles before the first output appears. For a single $128 \times 128 \times 128$ tile, you pay 256 fill cycles plus 128 useful cycles — only one-third of the time was useful. Stream a long tile (e.g., $128 \times 8192 \times 128$, a wide matmul) and the fill amortizes, hitting ~99% efficiency.
+The systolic array has a pipeline-fill latency of $128 + 128 = 256$ cycles before the first output appears. For a single $128 \times 128 \times 128$ tile, you pay 256 fill cycles plus 128 useful cycles, so only one-third of the time was useful. Stream a long tile (e.g., $128 \times 8192 \times 128$, a wide matmul) and the fill amortizes, hitting ~99% efficiency.
 
 This is yet another reason small matmuls are slow on TPU: the MXU spends most of its time filling and draining, not computing. It's the same roofline phenomenon we saw in §4.3, expressed in the time domain.
 
@@ -611,10 +613,10 @@ This is yet another reason small matmuls are slow on TPU: the MXU spends most of
 
 The point that most distinguishes the TPU programming model from the GPU one:
 
-- **ICI (Inter-Chip Interconnect)**: directly-attached optical/electrical links wiring chips into a **3D torus**. Each chip has 6 ICI ports (±X, ±Y, ±Z) on v4/v5p; 4 ports (±X, ±Y) on v5e/v6e (2D torus). Per-link bandwidth is ~9e10 B/s one-way on v5p, ~4.5e10 B/s on v5e/v4p, ~9e10 B/s on Trillium. *That is roughly an order of magnitude faster than InfiniBand and roughly half of HBM.*
+- **ICI (Inter-Chip Interconnect)**: directly-attached optical/electrical links wiring chips into a **3D torus**. Each chip has 6 ICI ports (±X, ±Y, ±Z) on v4/v5p; 4 ports (±X, ±Y) on v5e/v6e (2D torus). Per-link bandwidth is ~9e10 B/s one-way on v5p, ~4.5e10 B/s on v5e/v4, ~9e10 B/s on Trillium. *That is roughly an order of magnitude faster than InfiniBand and roughly half of HBM.*
 - A **slice** is a contiguous rectangular subset of a pod, all connected by ICI.
-- A **pod** is the full physical fabric: v4 pods are 4096 chips (16×16×16); **v5p pods are 8960 chips (16×20×28)**; Trillium pods are 256 chips wired in a 16×16 2D torus per pod, with multiple pods joining into superpods.
-- The torus **wraps around at the edges**, so for a length-$N$ ring on one axis, the worst-case hop count is $N/2$, not $N-1$. (If the slice is smaller than the pod, the wrap may not be present — corners cost more.)
+- A **pod** is the full physical fabric: v4 pods are 4096 chips (16×16×16); **v5p pods are 8960 chips (16×20×28)**; Trillium pods are 256 chips wired in a 16×16 2D torus per pod; **Ironwood (v7) scales to 9216 chips per superpod** (offered from 256 chips up), with multiple pods joining over the data-center network.
+- The torus **wraps around at the edges**, so for a length-$N$ ring on one axis, the worst-case hop count is $N/2$, not $N-1$. (If the slice is smaller than the pod, the wrap may not be present, and corners cost more.)
 - A **cube** is a 4×4×4 block with optical wraparound for reconfigurable topologies.
 - **DCN (Data Center Network)** connects pods/slices. DCN bandwidth is roughly an order of magnitude lower than ICI: v5p ~6.25e9 B/s/chip egress, v6e ~12.5e9 B/s/chip, v5e ~3.125e9 B/s/chip. **Multi-slice** training crosses DCN.
 
@@ -622,7 +624,7 @@ Per-hop latency on ICI is ~1 µs.
 
 ### 5.5 Why TPUs scale
 
-The reason you can keep adding chips to a TPU pod and keep getting near-linear throughput, while a GPU cluster starts to fight the network past one node, is that **ICI is roughly the same speed as HBM, while InfiniBand is ~20× slower**. The TPU was designed as a network-first system from v1; the GPU cluster grew an interconnect on top of a node-local design. Both work — but ICI is what lets you do tensor parallelism across thousands of chips. That is impossible on a GPU cluster except inside an NVLink domain.
+The reason you can keep adding chips to a TPU pod and keep getting near-linear throughput, while a GPU cluster starts to fight the network past one node, is that **ICI is roughly the same speed as HBM, while InfiniBand is ~20× slower**. The TPU was designed as a network-first system from v1; the GPU cluster grew an interconnect on top of a node-local design. Both work, but ICI is what lets you do tensor parallelism across thousands of chips, which is impossible on a GPU cluster except inside an NVLink domain.
 
 ### 5.6 The TPU "everything memory" hierarchy
 
@@ -635,23 +637,23 @@ A v5p chip's communication ladder, fastest to slowest:
 5. **PCIe (CPU↔TPU)**: 1.5e10 B/s.
 6. **DCN (cross-pod)**: 6.25e9 B/s.
 
-Communication should be proportional to bandwidth. Violations cause bottlenecks — the kind that show up as 30% MFU on a profile.
+Communication should be proportional to bandwidth. Violations cause bottlenecks, the kind that show up as 30% MFU on a profile.
 
 ### 5.7 A worked TPU latency example
 
-The book provides this gem. Loading 200 B of bf16 parameters of a model on 32 TPU v4p chips:
+The book provides this gem. Loading 200 B of bf16 parameters of a model on 32 TPU v4 chips:
 
 - Bytes per chip: $400 \times 10^9 / 32 = 1.25 \times 10^{10}$ B (since bf16 is 2 bytes/param).
 - HBM bandwidth per chip: $1.2 \times 10^{12}$ B/s.
 - Minimum latency to load parameters: $\frac{1.25 \times 10^{10}}{1.2 \times 10^{12}} \approx 10$ ms.
 
-So a single sampling step of a 200 B parameter LLM on 32 v4p chips has a *floor* of 10 ms, just to read the weights. Decoding one token in less than 10 ms is impossible on this hardware. *That* is a roofline argument.
+So a single sampling step of a 200 B parameter LLM on 32 v4 chips has a *floor* of 10 ms, just to read the weights. Decoding one token in less than 10 ms is impossible on this hardware. *That* is a roofline argument.
 
 ---
 
 ## Chapter 6. The GPU
 
-A GPU is the most counter-intuitive accelerator if you came from CPUs, because almost nothing about its execution model is what you would guess. The right mental model is "an army of arithmetic units chasing a single memory hierarchy."
+A GPU is counter-intuitive if you came from CPUs, because almost nothing about its execution model is what you would guess. The right mental model is "an army of arithmetic units chasing a single memory hierarchy."
 
 ### 6.1 The execution hierarchy
 
@@ -665,7 +667,7 @@ GPU (H100 SXM)
 
 The GPU is partitioned into **SMs**. The H100 SXM5 has 132 active SMs (144 physical, some fused off for yield); B200 has 148. Each SM has its own register file, schedulers, math units, and a slab of fast on-chip SRAM.
 
-Threads execute in **warps** of 32. All 32 threads in a warp share a program counter — they execute the same instruction in lockstep. If they take different control-flow paths, the warp serializes the branches ("warp divergence"); a kernel author's job is to keep warps coherent. Up to 64 warps (2048 threads) can be resident on one SM at once; the SM time-slices among them to hide memory latency, the way a CPU's out-of-order engine hides L1 misses.
+Threads execute in **warps** of 32. All 32 threads in a warp share a program counter; they execute the same instruction in lockstep. If they take different control-flow paths, the warp serializes the branches ("warp divergence"); a kernel author's job is to keep warps coherent. Up to 64 warps (2048 threads) can be resident on one SM at once; the SM time-slices among them to hide memory latency, the way a CPU's out-of-order engine hides L1 misses.
 
 ### 6.2 The memory hierarchy
 
@@ -676,11 +678,11 @@ Threads execute in **warps** of 32. All 32 threads in a warp share a program cou
 | L2 cache | ~50 MB (split into two ~25 MB partitions) | ~12 TB/s | ~200 cycles |
 | HBM3 | 80 GB (SXM5), 141 GB (H200), 192 GB (B200) | 3.35 / 4.8 / 8.0 TB/s | ~400+ cycles |
 
-Each level is roughly an order of magnitude smaller and faster than the next. A "well-written" GPU kernel reads each tile from HBM at most once into shared memory, does as many FLOPs as possible against that tile, then writes the result. That is the *entire* art of GPU kernel writing reduced to one sentence — and it is precisely why FlashAttention exists, because vanilla attention writes the $S \times S$ attention matrix to HBM.
+Each level is roughly an order of magnitude smaller and faster than the next. A "well-written" GPU kernel reads each tile from HBM at most once into shared memory, does as many FLOPs as possible against that tile, then writes the result. That is most of the art of GPU kernel writing in one sentence, and it is why FlashAttention exists: vanilla attention writes the $S \times S$ attention matrix to HBM.
 
 Blackwell adds a new level: **TMEM** (Tensor Memory), 256 KB/SM, dedicated to feeding the larger 5th-gen tensor cores. It removes the Hopper-era constraint that the matmul accumulator had to fit in registers.
 
-### 6.3 Tensor cores: the cult
+### 6.3 Tensor cores
 
 Each SM contains four **tensor cores** in addition to its FP32 CUDA cores. A tensor core consumes a small $m \times n \times k$ tile per cycle and outputs the tile's matmul, in mixed precision: bf16/fp16 inputs accumulating into fp32, plus fp8 (Hopper) and fp4 (Blackwell). H100 SXM peak rates:
 
@@ -707,9 +709,9 @@ This is what dictates your sharding strategy:
 - **NVLink / NVSwitch (intra-node)**: H100 SXM exposes 18 NVLink-4 lanes for ~900 GB/s of bidirectional bandwidth per GPU, all-to-all to the other 7 GPUs in an HGX/DGX node via NVSwitch. That is an order of magnitude faster than HBM-to-CPU PCIe and roughly comparable to HBM bandwidth.
 - **InfiniBand / RoCE (cross-node)**: a typical H100 cluster has 8 NDR-400 NICs per node — i.e., 50 GB/s per GPU. **About 18× slower than NVLink.**
 
-That cliff — 900 GB/s inside the box, 50 GB/s leaving it — is the entire reason for the conventional sharding mantra: **"TP within node, FSDP/DP across nodes."** Tensor parallelism requires high-bandwidth all-reduces every layer; it would die on InfiniBand. Data/FSDP reduces gradients once per step, can be overlapped, and tolerates the slower fabric.
+That cliff, 900 GB/s inside the box versus 50 GB/s leaving it, is the entire reason for the conventional sharding mantra: **"TP within node, FSDP/DP across nodes."** Tensor parallelism requires high-bandwidth all-reduces every layer; it would die on InfiniBand. Data/FSDP reduces gradients once per step, can be overlapped, and tolerates the slower fabric.
 
-**B200 deltas** (sketch): 192 GB HBM3e, ~8 TB/s aggregate; **NVLink 5 at ~1.8 TB/s per GPU** (twice H100); NVL72 racks scale that fabric to 72 GPUs in one coherent domain — closing the gap with TPU pods at this scale.
+**B200 deltas** (sketch): 192 GB HBM3e, ~8 TB/s aggregate; **NVLink 5 at ~1.8 TB/s per GPU** (twice H100); NVL72 racks scale that fabric to 72 GPUs in one coherent domain, closing the gap with TPU pods at this scale. **Blackwell Ultra (B300/GB300)**, shipping since late 2025, takes the same socket to 288 GB of HBM3e at ~8 TB/s and roughly doubles dense FP4 throughput; nothing about the sharding story changes.
 
 ### 6.6 The DGX network at scale
 
@@ -759,8 +761,8 @@ $$
 
 Two facts:
 
-1. The cost in *bytes per device* asymptotes to $2V$ and **does not grow with $N$**. This is the magic of ring algorithms — adding more devices does not slow each one down. That is why allreduce scales.
-2. There is also a latency term $2(N-1) \cdot \alpha$ where $\alpha$ is per-hop latency. For very small $V$, the latency term dominates. This is why fusing many small gradients into one big bucket matters — you amortize latency.
+1. The cost in *bytes per device* asymptotes to $2V$ and **does not grow with $N$**. This is what makes ring algorithms work: adding more devices does not slow each one down. That is why allreduce scales.
+2. There is also a latency term $2(N-1) \cdot \alpha$ where $\alpha$ is per-hop latency. For very small $V$, the latency term dominates. This is why fusing many small gradients into one big bucket matters: you amortize latency.
 
 ### 7.2 AllGather and ReduceScatter
 
@@ -799,54 +801,54 @@ AllToAll is why MoE training is much more sensitive to fabric quality than dense
 The intuitive law:
 
 - **Replicate weights, reduce gradients (DDP)**: one **AllReduce** of the full gradient at every step. Easy to reason about, easy to overlap with backward, but every device holds full weights and optimizer state. Memory expensive.
-- **Shard weights (FSDP / ZeRO-3)**: an **AllGather** of weights on the way down (forward), and a **ReduceScatter** of gradients on the way up (backward). Same total bytes as AllReduce but you only ever materialize one shard at a time — memory cheap. Each layer pays a synchronization, so it's harder to hide.
-- **Tensor parallelism**: AllReduce after each row-parallel matmul (or AllGather/ReduceScatter for column-parallel). Per-layer collectives — only feasible on fast fabric, hence "TP inside node only" on GPUs.
+- **Shard weights (FSDP / ZeRO-3)**: an **AllGather** of weights on the way down (forward), and a **ReduceScatter** of gradients on the way up (backward). Same total bytes as AllReduce but you only ever materialize one shard at a time, so it's memory cheap. Each layer pays a synchronization, so it's harder to hide.
+- **Tensor parallelism**: AllReduce after each row-parallel matmul (or AllGather/ReduceScatter for column-parallel). Per-layer collectives, only feasible on fast fabric, hence "TP inside node only" on GPUs.
 - **Pipeline parallelism**: point-to-point sends only, no collectives, but it leaves bubbles.
 
 ### 7.5 Why GPU clusters fight at scale, and TPU pods don't
 
-Plug numbers in. A 70 B model in bf16 has ~140 GB of weights; FSDP across 1024 GPUs spread over 128 nodes shards them ~140 MB per device. The forward pass needs to AllGather each layer's weights — say ~100 MB per layer:
+Plug numbers in. A 70 B model in bf16 has ~140 GB of weights; FSDP across 1024 GPUs spread over 128 nodes shards them ~140 MB per device. The forward pass needs to AllGather each layer's weights, say ~100 MB per layer:
 
 - On NVLink: $100 \text{ MB} / 900 \text{ GB/s} \approx 110\,\mu\text{s}$.
 - On InfiniBand crossing 16 nodes: $100 \text{ MB} / 50 \text{ GB/s} \approx 2 \text{ ms}$.
 
-Twenty times slower. That is the reason FSDP across nodes works only when overlapped carefully and uses hierarchical (intra-node, then inter-node) schedules — a feature called **HSDP** / hybrid sharded data parallel.
+Twenty times slower. That is the reason FSDP across nodes works only when overlapped carefully and uses hierarchical (intra-node, then inter-node) schedules, a feature called **HSDP** / hybrid sharded data parallel.
 
-On a TPU v5p pod with 1024 chips, every chip is on ICI at ~90 GB/s/link × 6 links and the rings span the slice — you stay at NVLink-like speeds even at thousands of chips. *That* is the reason people quote "TPUs scale better."
+On a TPU v5p pod with 1024 chips, every chip is on ICI at ~90 GB/s/link × 6 links and the rings span the slice, so you stay at NVLink-like speeds even at thousands of chips. This is the reason people quote "TPUs scale better."
 
 ### 7.6 How this changes the JAX decisions you actually make
 
 You now have enough hardware vocabulary to translate every common performance question into a roofline-or-collective question.
 
-**"Why is my elementwise chain slow?"** Each op has $\text{AI} \approx O(1)$, far below the ridge — so it's HBM-bound. Each unfused op is one HBM round trip. Fix: `jax.jit`. XLA fuses elementwise chains into a single kernel that keeps tensors in registers/L1, so you pay one round trip instead of $k$. If `jit` isn't fusing (check with `jax.jit(f).lower(...).compile().as_text()` and look at the HLO), it's usually a `dynamic_update_slice`, an unaligned `reshape`, or a sharding boundary breaking the fusion.
+**"Why is my elementwise chain slow?"** Each op has $\text{AI} \approx O(1)$, far below the ridge, so it's HBM-bound. Each unfused op is one HBM round trip. Fix: `jax.jit`. XLA fuses elementwise chains into a single kernel that keeps tensors in registers/L1, so you pay one round trip instead of $k$. If `jit` isn't fusing (check with `jax.jit(f).lower(...).compile().as_text()` and look at the HLO), it's usually a `dynamic_update_slice`, an unaligned `reshape`, or a sharding boundary breaking the fusion.
 
 **"Why is my FSDP step slow at scale?"** Profile and look at AllGather time vs compute time. Three escapes:
 - Increase batch / sequence length so compute grows and AllGather amortizes.
 - TP inside a node, FSDP across nodes (the hybrid pattern).
 - Overlap: `shard_map` with async collectives + careful scheduling lets the compiler overlap each layer's AllGather with the previous layer's compute. XLA's GSPMD does this automatically for many shapes; sometimes it needs a hint via `jax.lax.with_sharding_constraint`.
 
-**"Why is decode so slow per FLOP?"** Because $\text{AI} \approx 1$. You are fundamentally HBM-bound — the chip spends most cycles waiting on KV-cache reads, not doing math. Fixes all reduce *bytes moved per token*:
+**"Why is decode so slow per FLOP?"** Because $\text{AI} \approx 1$. You are fundamentally HBM-bound: the chip spends most cycles waiting on KV-cache reads, not doing math. Fixes all reduce *bytes moved per token*:
 - **Batch more requests** (continuous batching / paged attention): amortize the weight read.
 - **Quantize weights** to int8 / fp8 / int4: each byte saved is bandwidth saved.
 - **Compress the KV cache** (MQA / GQA / MLA): fewer KV bytes per token per layer.
 - **Speculative decoding**: $k$ tokens of math per HBM round trip.
-- TP *hurts* small-batch decode because the extra AllReduce per layer costs more than the FLOP savings — yet another roofline consequence.
+- TP *hurts* small-batch decode because the extra AllReduce per layer costs more than the FLOP savings, yet another roofline consequence.
 
-**"Why does Pallas (or Triton) help me here?"** Because XLA, smart as it is, sometimes generates 4 kernels where 1 would suffice — particularly across reductions, scatter/gather, and custom shapes. Each kernel boundary is an HBM round trip you can sometimes elide. Pallas lets you write one kernel that holds the whole stage in VMEM (TPU) or shared memory (GPU), bringing $B$ down by a constant factor that is occasionally 2–10×. The classic case is FlashAttention.
+**"Why does Pallas (or Triton) help me here?"** Because XLA, smart as it is, sometimes generates 4 kernels where 1 would suffice, particularly across reductions, scatter/gather, and custom shapes. Each kernel boundary is an HBM round trip you can sometimes elide. Pallas lets you write one kernel that holds the whole stage in VMEM (TPU) or shared memory (GPU), bringing $B$ down by a constant factor that is occasionally 2–10×. The classic case is FlashAttention.
 
-**"Should I use bf16 or fp8?"** Two effects: peak FLOPs roughly double, and HBM bytes halve. If you were compute-bound, fp8 is ~2× faster. If you were memory-bound, fp8 is also ~2× faster (bytes halve). The catch is numerical — you need scaling, and your accumulation must stay in fp32. JAX `jax.lax.dot_general` with `preferred_element_type=jnp.float32` and bf16/fp8 inputs is the canonical pattern.
+**"Should I use bf16 or fp8?"** Two effects: peak FLOPs roughly double, and HBM bytes halve. If you were compute-bound, fp8 is ~2× faster. If you were memory-bound, fp8 is also ~2× faster (bytes halve). The catch is numerical: you need scaling, and your accumulation must stay in fp32. JAX `jax.lax.dot_general` with `preferred_element_type=jnp.float32` and bf16/fp8 inputs is the canonical pattern.
 
-**"Will this kernel saturate the chip?"** Compute its AI. Compare to the ridge point. If $\text{AI} < \text{AI}^\star$, the answer is no, no matter how clever you are. This is the most empowering single skill in the whole field: in 30 seconds with a calculator, you can predict whether a proposed optimization is even worth attempting.
+**"Will this kernel saturate the chip?"** Compute its AI. Compare to the ridge point. If $\text{AI} < \text{AI}^\star$, the answer is no, no matter how clever you are. This is one of the most useful skills you can build: in 30 seconds with a calculator, you can predict whether a proposed optimization is even worth attempting.
 
-A final mental discipline. When something is slow, refuse to guess. Open the profiler (Chapter 31). Ask: is the chip *busy* (compute-bound) or *waiting* (memory-bound or comms-bound)? The roofline tells you which it should be; the profiler tells you which it is; the gap between them is your optimization opportunity. Everything else — fusion, sharding, dtype, kernel choice, recomputation — moves an op on the chart, either rightward (more arithmetic per byte) or upward (more parallelism). Once you see operations as points on the roofline plot and shardings as choices about which collective to pay, the hardware stops being a black box and starts being a tool.
+A final mental discipline. When something is slow, refuse to guess. Open the profiler (Chapter 31). Ask: is the chip *busy* (compute-bound) or *waiting* (memory-bound or comms-bound)? The roofline tells you which it should be; the profiler tells you which it is; the gap between them is your optimization opportunity. Everything else (fusion, sharding, dtype, kernel choice, recomputation) moves an op on the chart, either rightward (more arithmetic per byte) or upward (more parallelism). Once you see operations as points on the roofline plot and shardings as choices about which collective to pay, the hardware stops being a black box.
 
 ---
 
 # Part III — Building Models in the Modern Ecosystem
 
-JAX itself is a numerical-computing library. The neural-network abstractions live in companion libraries. The first edition of this guide centered on Flax Linen and Haiku; the modern story is different. **Flax NNX** is now the recommended Flax API; **Equinox** is the principled minimalist alternative; **Haiku** is in maintenance and not where new projects start. Optimization remains **Optax**'s territory. Two new pieces have joined the canon: **Grain** for data loading and **Orbax** for checkpointing — together they fill the "Layer 1" and persistence parts of the JAX stack diagram that the first edition mostly punted on.
+JAX itself is a numerical-computing library. The neural-network abstractions live in companion libraries. The first edition of this guide centered on Flax Linen and Haiku; things have changed. **Flax NNX** is now the recommended Flax API; **Equinox** is the principled minimalist alternative; **Haiku** is in maintenance and not where new projects start. Optimization remains **Optax**'s territory. Two newer pieces round out the stack: **Grain** for data loading and **Orbax** for checkpointing, which fill the "Layer 1" and persistence parts of the JAX stack diagram that the first edition mostly punted on.
 
-This part walks through the canonical 2026 ecosystem: how to define a model (Chapters 8–9), how to optimize it (10), how to feed it data (11) and persist it (12), and a complete worked end-to-end pipeline (13).
+This part walks through the 2026 ecosystem: how to define a model (Chapters 8–9), how to optimize it (10), how to feed it data (11) and persist it (12), and a complete worked end-to-end pipeline (13).
 
 ---
 
@@ -856,7 +858,7 @@ This part walks through the canonical 2026 ecosystem: how to define a model (Cha
 
 Flax Linen's elegant `model = MyModule(...); params = model.init(rng, x); y = model.apply(params, x)` two-stage flow is one of the most cited examples of "functional purity at the API surface." It is also, in practice, what new users trip on most. The friction points:
 
-- An `nn.Module` instance does **not** own its parameters — they live in a separate `FrozenDict`.
+- An `nn.Module` instance does **not** own its parameters; they live in a separate `FrozenDict`.
 - `@nn.compact` vs. `setup()` — two ways to declare submodules with subtly different semantics around lazy initialization.
 - The variable-collections system (`{'params': ..., 'batch_stats': ...}`) and the `mutable=` kwarg dance for stateful layers.
 - Threading `train=True/False` and `rngs={...}` through `apply` for dropout / BN.
@@ -865,7 +867,7 @@ NNX reorganizes this around real Python objects. An `nnx.Module` instance is mut
 
 The official rationale, paraphrased: Linen achieves functional purity *at the API surface*; NNX achieves it *at the transform boundary*. Users get a familiar Pythonic object model; JAX still sees pure functions where it has to.
 
-Linen is **not deprecated** — long-term support is committed — but new features (newer parallelism-aware transforms, the `nnx.bridge` interop) target NNX, and the official `flax.readthedocs.io` examples (MNIST, ResNet, Gemma) are now NNX-first.
+Linen is **not deprecated** (long-term support is committed), but new features (newer parallelism-aware transforms, the `nnx.bridge` interop) target NNX, and the official `flax.readthedocs.io` examples (MNIST, ResNet, Gemma) are now NNX-first.
 
 ### 8.2 The reference / Variable / split-merge model
 
@@ -893,7 +895,7 @@ Three things to notice:
 
 1. `nnx.Rngs(0)` replaces Linen's `init(rng, x)`. You pass RNGs to the constructor; the constructor *runs initializers immediately*, so by the time `__init__` returns, the module is fully initialized. There is no separate "init phase."
 2. `self.w` is an `nnx.Param`, an `nnx.Variable` subclass. The actual array sits at `self.w.value`; reads/writes go through the wrapper so NNX can track them.
-3. Calling the module is just calling it — no `apply`, no params dict.
+3. Calling the module is just calling it: no `apply`, no params dict.
 
 To use `jax.jit`, `jax.grad`, etc. you convert the module into a pure pair:
 
@@ -909,9 +911,9 @@ def loss_fn(state, x, y):
 grads = jax.grad(loss_fn)(state, x, y)
 ```
 
-`graphdef` is hashable, traced once, and identifies the module's structure. `state` is the PyTree of `Variable` values and is what you actually differentiate / jit over. After the transform, `nnx.update(model, new_state)` writes back in place. This is the **functional core, imperative shell** pattern — same JAX semantics, much friendlier surface.
+`graphdef` is hashable, traced once, and identifies the module's structure. `state` is the PyTree of `Variable` values and is what you actually differentiate / jit over. After the transform, `nnx.update(model, new_state)` writes back in place. This is the **functional core, imperative shell** pattern: same JAX semantics, much friendlier surface.
 
-NNX also supports `nnx.split(model, nnx.Param, nnx.BatchStat, ...)` to fan state out by Variable subtype — replacing Linen's "variable collections" with regular Python type filters.
+NNX also supports `nnx.split(model, nnx.Param, nnx.BatchStat, ...)` to fan state out by Variable subtype, replacing Linen's "variable collections" with regular Python type filters.
 
 ### 8.3 NNX-aware transforms
 
@@ -1178,7 +1180,7 @@ optimizer = optax.chain(
 
 ### 11.1 What it is and why
 
-The first edition of this guide endorsed the old advice: "use `tensorflow_datasets` with `tf.data`, or PyTorch's `DataLoader`." Reasonable in 2022; obsolete now. The official JAX stack diagram positions **Grain** (<https://github.com/google/grain>) as the canonical Layer 1 — designed around JAX's distribution model, with no TF dependency.
+The first edition of this guide endorsed the old advice: "use `tensorflow_datasets` with `tf.data`, or PyTorch's `DataLoader`." Reasonable in 2022; obsolete now. The official JAX stack diagram positions **Grain** (<https://github.com/google/grain>) as the standard Layer 1: designed around JAX's distribution model, with no TF dependency.
 
 The single design contract that distinguishes Grain from `tf.data` and PyTorch's `DataLoader` is **exact, bit-reproducible determinism keyed on a single integer index.** If you record "we are at global step 47,238," Grain can rehydrate the exact same batch on a fresh process, on different hardware, with a different number of hosts, as long as the underlying `DataSource` hasn't changed. This is what makes restart-from-checkpoint *correct* in distributed training.
 
@@ -1338,9 +1340,9 @@ if mgr.should_save(step):
 mgr.wait_until_finished()  # before resume / shutdown
 ```
 
-### 12.3 Sharded checkpointing — the killer feature
+### 12.3 Sharded checkpointing
 
-When a `state` has leaves that are `jax.Array`s with `NamedSharding`, naive `pickle`/`msgpack` would `device_get` the whole thing onto host 0 — OOM for any model that doesn't fit in one host's RAM.
+When a `state` has leaves that are `jax.Array`s with `NamedSharding`, naive `pickle`/`msgpack` would `device_get` the whole thing onto host 0, an OOM for any model that doesn't fit in one host's RAM.
 
 Orbax's `StandardSave` (or `PyTreeCheckpointHandler`) uses **TensorStore** under the hood. Each leaf is written as a TensorStore Zarr/N5 array; **each host writes the slices it owns directly to the storage backend** (GCS, local FS, S3) in parallel. There is *never* a global gather.
 
@@ -1377,10 +1379,10 @@ Mechanics:
 
 1. `mgr.save(step, ...)` snapshots device buffers to host pinned memory (sync, ~ms).
 2. A background thread writes to TensorStore (async, seconds).
-3. The directory is renamed to its final `<step>` name only after the write completes — atomic durability.
+3. The directory is renamed to its final `<step>` name only after the write completes, giving atomic durability.
 4. `mgr.wait_until_finished()` blocks until pending writes drain.
 
-Don't call `save` faster than your write bandwidth — `save_interval_steps` enforces a minimum gap.
+Don't call `save` faster than your write bandwidth; `save_interval_steps` enforces a minimum gap.
 
 ### 12.5 Integrating with TrainState (Linen) and NNX
 
@@ -1517,7 +1519,7 @@ mgr.wait_until_finished()
 mgr.close()
 ```
 
-The shape of this skeleton *is* the canonical 2026 JAX training loop: **Grain → sharded `jit` step → Orbax**. Every line earns its place; every primitive composes deterministically with the others. We will spend Part IV understanding the sharding lines (`Mesh`, `NamedSharding`, `make_array_from_process_local_data`) in detail.
+The shape of this skeleton *is* the standard 2026 JAX training loop: **Grain → sharded `jit` step → Orbax**. Every line does real work, and the primitives compose deterministically with each other. We will spend Part IV understanding the sharding lines (`Mesh`, `NamedSharding`, `make_array_from_process_local_data`) in detail.
 
 ### 13.2 What's still missing (and why)
 
@@ -1536,7 +1538,7 @@ JAX's parallelism story has matured into a coherent three-level spectrum:
 2. **Explicit / typed-sharding** — the same, but with mesh axes typed `AxisType.Explicit` so shardings become part of each `jax.Array`'s static type.
 3. **Manual SPMD** — `shard_map`. You write per-shard code and call collectives explicitly.
 
-The legacy fourth level — `pmap` — exists, works for tutorials, but is no longer where new code starts.
+The legacy fourth level, `pmap`, still exists and works for tutorials, but is no longer where new code starts.
 
 This part teaches each level, the math behind sharded matmul (with the four cases), and the multi-host story that ties them all together.
 
@@ -1556,7 +1558,7 @@ devices = np.array(jax.devices()).reshape(2, 4)
 mesh = Mesh(devices, axis_names=('data', 'model'))
 ```
 
-The `axis_names` are the vocabulary you use when describing shardings. A 1-D mesh `Mesh(devices, ('data',))` is appropriate for pure data parallelism / FSDP; a 2-D mesh adds a model-parallel axis; a 3-D mesh adds pipeline. Modern practice rarely goes above 4 axes (`('data', 'fsdp', 'tensor', 'expert')` for MoE) — the compiler can express anything you want, but readability suffers.
+The `axis_names` are the vocabulary you use when describing shardings. A 1-D mesh `Mesh(devices, ('data',))` is appropriate for pure data parallelism / FSDP; a 2-D mesh adds a model-parallel axis; a 3-D mesh adds pipeline. Most setups rarely go above 4 axes (`('data', 'fsdp', 'tensor', 'expert')` for MoE); the compiler can express anything you want, but readability suffers.
 
 Newer JAX exposes `jax.make_mesh(axis_shapes, axis_names)` as a shortcut.
 
@@ -1615,7 +1617,7 @@ When an array `x` is sharded `P('data', None)` across an 8-device mesh `('data',
 - You write code as if you are one device.
 - Cross-device data needs explicit collectives.
 
-This is the single most important mental model in JAX parallelism. Get it once and the rest is bookkeeping.
+This is the most important mental model to get right in JAX parallelism. Once it's clear, the rest is bookkeeping.
 
 ---
 
@@ -1650,11 +1652,11 @@ def layer(x, w1, w2):
     return h @ w2
 ```
 
-This is a **hint**, not a hard requirement — GSPMD may still reshard around it if cheaper. But it lets you guide the compiler when its automatic choices are suboptimal.
+This is a **hint**, not a hard requirement; GSPMD may still reshard around it if cheaper. But it lets you guide the compiler when its automatic choices are suboptimal.
 
 ### 15.3 FSDP in 6 lines
 
-The canonical 2026 idiom for FSDP is striking in its simplicity:
+The 2026 idiom for FSDP is remarkably simple:
 
 ```python
 mesh = Mesh(jax.devices(), ('data',))
@@ -1668,11 +1670,11 @@ def step(params, opt_state, batch):
     ...   # standard single-device step
 ```
 
-That's the entire FSDP setup. The compiler inserts `AllGather` for the forward, `ReduceScatter` for the backward, automatically. Compared to PyTorch's FSDP wrapper, the contrast is striking.
+That's the entire FSDP setup. The compiler inserts `AllGather` for the forward and `ReduceScatter` for the backward, automatically. Set against PyTorch's FSDP wrapper, it's a lot less code.
 
 ### 15.4 Explicit sharding mode (typed shardings)
 
-The most important conceptual change in JAX parallelism since `shard_map`: shardings can become part of each `jax.Array`'s **type**.
+The biggest conceptual change in JAX parallelism since `shard_map`: shardings can become part of each `jax.Array`'s **type**.
 
 ```python
 import jax.sharding as shd
@@ -1726,7 +1728,7 @@ shard_map(f, mesh, in_specs, out_specs, check_rep=True, auto=frozenset())
 
 **Outside `shard_map`** with input sharded `P('data', None)` across 8 devices: the array's `.shape` is `(1024, D)`, the compiler partitions ops for you.
 
-**Inside `shard_map`** with `in_specs=P('data', None)`: the same value arrives in your function with shape `(128, D)` — the local per-shard shape. You write code as if on one device, calling collectives explicitly when you need data from peers.
+**Inside `shard_map`** with `in_specs=P('data', None)`: the same value arrives in your function with shape `(128, D)`, the local per-shard shape. You write code as if on one device, calling collectives explicitly when you need data from peers.
 
 Same mental model as MPI/NCCL programming, but with traceable JAX ops and `jit` compilation.
 
@@ -1800,7 +1802,7 @@ def ring_allreduce(x):
     return acc   # equivalent to jax.lax.psum(x, 'data') but written explicitly
 ```
 
-**Expert all-to-all (MoE)** — the canonical case where `shard_map` shines and auto-mode struggles:
+**Expert all-to-all (MoE)**, the canonical case where `shard_map` shines and auto-mode struggles:
 
 ```python
 @partial(shard_map, mesh=mesh,
@@ -1938,14 +1940,14 @@ After `initialize`:
 
 ### 17.2 The global view: `jax.Array` is the global addressable thing
 
-The single most important thing to internalize about multi-host JAX, and where it differs sharply from PyTorch DDP / TF MirroredStrategy:
+The main thing to internalize about multi-host JAX, and where it differs sharply from PyTorch DDP / TF MirroredStrategy:
 
 - A `jax.Array` is a **logical, global** array that may be physically distributed across devices on multiple hosts.
 - Each host's process **only stores the shards on its local devices**; it can address the rest of the array logically (participate in collectives) but cannot directly read remote bytes.
-- Inside a `jit`, every host runs the *same* program. Because shardings are part of the type signature, the compiler produces a single XLA HLO partitioned across all devices on all hosts. Hosts do not need to coordinate Python execution — they just need to all hit the same `jit` boundaries with consistent shardings.
+- Inside a `jit`, every host runs the *same* program. Because shardings are part of the type signature, the compiler produces a single XLA HLO partitioned across all devices on all hosts. Hosts do not need to coordinate Python execution; they just need to all hit the same `jit` boundaries with consistent shardings.
 - `arr.addressable_shards` — local shards.
 - `arr.global_shards` — conceptual list of all shards (with metadata for non-local ones).
-- `np.asarray(arr)` raises if the array is not fully addressable on this host. Use `jax.experimental.multihost_utils.process_allgather(arr)` to bring a global array to every host (expensive — for logging only).
+- `np.asarray(arr)` raises if the array is not fully addressable on this host. Use `jax.experimental.multihost_utils.process_allgather(arr)` to bring a global array to every host (expensive; for logging only).
 
 ### 17.3 Multi-host data ingestion
 
@@ -2015,7 +2017,7 @@ This is the canonical *tensor parallel* layer: row-parallel on the first matmul 
 
 $$A[I_X, J] \cdot B[J, K_X] \to ?$$
 
-This is invalid as written — you can't combine an $A$ shard's row of $C$ with the $B$ shard's column without first gathering one of them. AllGather one operand (Case 2), then proceed.
+This is invalid as written: you can't combine an $A$ shard's row of $C$ with the $B$ shard's column without first gathering one of them. AllGather one operand (Case 2), then proceed.
 
 ### 18.5 The collective costs (book equations, verbatim)
 
@@ -2037,7 +2039,7 @@ For a ring all-reduce in the bandwidth-bound regime, the time is
 
 $$T_{\text{AllReduce}} \approx \frac{2V}{W_{\text{ici}}}$$
 
-— independent of $N$! That is the secret behind ring algorithms scaling. The book calls this out explicitly: "when performing an AllGather (or ReduceScatter or AllReduce) in a throughput-bound regime, the actual communication time depends only on the size of the array and the available bandwidth, not the number of devices."
+This is independent of $N$, which is the reason ring algorithms scale. The book calls this out explicitly: "when performing an AllGather (or ReduceScatter or AllReduce) in a throughput-bound regime, the actual communication time depends only on the size of the array and the available bandwidth, not the number of devices."
 
 The latency floor does grow with $N$ (it's $\sim N \alpha$ for per-hop latency $\alpha$), so for tiny payloads you do see scaling overhead. Bucket your gradients to live in the bandwidth-bound regime.
 
@@ -2067,7 +2069,7 @@ We do exactly this for a 70 B Transformer in Chapter 25.
 
 The first edition of this guide implemented a vanilla decoder-only Transformer in Flax Linen and stopped there. Past that point, an enormous amount of accumulated craft is what separates "a Transformer that works" from "a Transformer that trains efficiently and serves with reasonable economics." This part walks through what a serious 2026 practitioner needs.
 
-We start with notation and the operational FLOP/parameter math (Chapter 19). Then attention beyond the textbook — FlashAttention (20) and KV-cache management (21). Position embeddings (22). MoE (23). Numerics and stability (24). Training parallelism end-to-end with a concrete LLaMA-3-70B worked example (25). And inference, where everything you learned about training hits a different reality (26).
+We start with notation and the operational FLOP/parameter math (Chapter 19). Then attention beyond the textbook: FlashAttention (20) and KV-cache management (21). Position embeddings (22). MoE (23). Numerics and stability (24). Training parallelism end-to-end with a concrete LLaMA-3-70B worked example (25). And inference, where everything you learned about training hits a different reality (26).
 
 ---
 
@@ -2122,7 +2124,7 @@ For LLaMA-3-70B with $D = 8192$, $L = 80$, $N = 64$, $K = 8$, $H = 128$, $F = 28
 - Vocab head ($V \approx 128256$): $2 \cdot 128256 \cdot 8192 = 2.1 \times 10^9$.
 - **Total: $\approx 7.04 \times 10^{10}$ params** — the "70 B" rounds.
 
-The MLP block dominates the parameter count. As long as $T < 8D$, the MLP also dominates the FLOPs budget — a fact we'll re-derive.
+The MLP block dominates the parameter count. As long as $T < 8D$, the MLP also dominates the FLOPs budget, a fact we'll re-derive.
 
 ### 19.3 Per-layer FLOP count (training, forward + backward)
 
@@ -2155,7 +2157,7 @@ $$
 \frac{\text{attention FLOPs}}{\text{MLP FLOPs}} = \frac{12 B T^2 N H}{18 B T D F} = \frac{T \cdot N H}{1.5 \cdot D F}
 $$
 
-With $F = 4D$ and $N H = D$: $\frac{T \cdot D}{6 D^2} = T/(6D)$, which crosses 1 when $T \sim 6D$. The book gives a tighter estimate of $T > 8D$ for attention to dominate during training. For LLaMA-3 with $D = 8192$, that's $T > 65{,}536$ — still longer than typical pretraining context. Once you fine-tune for very long context (128 k+), attention dominates and you start to need exotic kernels and parallelism.
+With $F = 4D$ and $N H = D$: $\frac{T \cdot D}{6 D^2} = T/(6D)$, which crosses 1 when $T \sim 6D$. The book gives a tighter estimate of $T > 8D$ for attention to dominate during training. For LLaMA-3 with $D = 8192$, that's $T > 65{,}536$, still longer than typical pretraining context. Once you fine-tune for very long context (128 k+), attention dominates and you start to need exotic kernels and parallelism.
 
 ### 19.5 KV cache size
 
@@ -2173,7 +2175,7 @@ $$
 2 \cdot 8192 \cdot 80 \cdot 8 \cdot 128 \cdot 2 = 2.68 \text{ GiB per request}.
 $$
 
-With $K = 64$ (full MHA, no GQA): 21.5 GiB per request — *enormous*. This is why GQA exists and why every modern LLM uses it.
+With $K = 64$ (full MHA, no GQA): 21.5 GiB per request, which is enormous. This is why GQA exists and why every modern LLM uses it.
 
 ### 19.6 Activation memory and gradient checkpointing
 
@@ -2217,7 +2219,7 @@ $$
 
 with $Q \in \mathbb{R}^{T \times H}$, $K, V \in \mathbb{R}^{S \times H}$.
 
-Implemented naively: form $S = QK^\top \in \mathbb{R}^{T \times S}$, write to HBM, apply softmax (row-wise reduction), write to HBM, multiply by $V$, write out. Memory cost is $O(T S)$ for the attention matrix — quadratic in sequence length. More importantly, **bandwidth cost is $O(T S)$** — every byte of $S$ goes to HBM and comes back for the next op.
+Implemented naively: form $S = QK^\top \in \mathbb{R}^{T \times S}$, write to HBM, apply softmax (row-wise reduction), write to HBM, multiply by $V$, write out. Memory cost is $O(T S)$ for the attention matrix, quadratic in sequence length. More importantly, **bandwidth cost is $O(T S)$**: every byte of $S$ goes to HBM and comes back for the next op.
 
 For long contexts this is the dominant cost: not the FLOPs (though they're quadratic too), but the *bandwidth*. The attention arithmetic intensity is
 
@@ -2312,7 +2314,7 @@ The forward kernel composes with `jax.custom_vjp` for `grad`; the backward uses 
 
 ### 20.6 Sliding window / local attention
 
-For very long contexts, full quadratic attention is wasteful when most useful information is local. A sliding window of size $W$ caps per-query work at $O(N \cdot W)$ — restoring linearity in time with unchanged constant memory. Used by Longformer / BigBird (with global tokens) and by Mistral / Gemma 2 (alternating with full attention per layer).
+For very long contexts, full quadratic attention is wasteful when most useful information is local. A sliding window of size $W$ caps per-query work at $O(N \cdot W)$, restoring linearity in time with unchanged constant memory. Used by Longformer / BigBird (with global tokens) and by Mistral / Gemma 2 (alternating with full attention per layer).
 
 In a Pallas kernel this is just *block skipping*: KV tiles outside $[i_{\text{start}} - W, i_{\text{start}}]$ are never loaded. `jax.nn.dot_product_attention` accepts a `local_window_size=(left, right)` argument; on TPU `splash_attention` accepts `MultiHeadMask([CausalMask(...), LocalMask(window=...)])` compositions.
 
@@ -2345,7 +2347,7 @@ $$
 \boxed{B_{\text{crit}} = \frac{\pi}{\beta} \cdot \frac{\text{bits}_{\text{param}}}{\text{bits}_{\text{activation}}}}
 $$
 
-For TPU v5e bf16: $B_{\text{crit}} \approx 240$ tokens. For int8 weights with bf16 activations: $B_{\text{crit}} \approx 120$ — *quantization is also a roofline lever*.
+For TPU v5e bf16: $B_{\text{crit}} \approx 240$ tokens. For int8 weights with bf16 activations: $B_{\text{crit}} \approx 120$; *quantization is also a roofline lever*.
 
 Prefill prompts typically exceed 240 tokens, so prefill is naturally compute-bound. Decode requires 240 *concurrent requests* to be compute-bound, which is why batching is crucial for decode throughput.
 
@@ -2385,7 +2387,7 @@ Instead of allocating a contiguous $S_{\max}$-long buffer per request (which fra
 
 Memory waste drops from ~60% (contiguous over-allocation) to <4%. Originally introduced by vLLM (Kwon et al. 2023, PagedAttention).
 
-**Ragged paged attention** generalizes further: the kernel handles a *batch of variable-length sequences* in a single dispatch, with separate `cu_seq_lens` cumulative offsets — exactly what continuous batching needs.
+**Ragged paged attention** generalizes further: the kernel handles a *batch of variable-length sequences* in a single dispatch, with separate `cu_seq_lens` cumulative offsets, exactly what continuous batching needs.
 
 JAX landings:
 
@@ -2397,7 +2399,7 @@ JAX landings:
 
 The decode bottleneck is *KV cache bandwidth*, not parameter bandwidth. **Multi-Query Attention** (Shazeer 2019) shares one $(K, V)$ head across all query heads, cutting KV cache size by $N$. **Grouped-Query Attention (GQA)** (Ainslie et al. 2023) is the practical compromise: $K$ groups, where $K \mid N$, with $N/K$ typically 4–8. LLaMA-3 uses 8:1 ($N=64, K=8$).
 
-In Pallas, you broadcast on the head axis when loading from HBM — one KV tile feeds $N/K$ Q tiles in registers, which is also a *compute* win because it amortizes KV loads.
+In Pallas, you broadcast on the head axis when loading from HBM: one KV tile feeds $N/K$ Q tiles in registers, which is also a *compute* win because it amortizes KV loads.
 
 **MLA (Multi-head Latent Attention)** in DeepSeek-V3 takes this further: project KV into a low-rank "latent" form before caching, then expand back at use time. Cuts KV cache to ~$1/16$ of MHA at minimal quality cost.
 
@@ -2409,7 +2411,7 @@ All major JAX attention implementations accept `num_kv_heads`. `jax.nn.dot_produ
 
 ### 22.1 The why
 
-Sinusoidal absolute positions don't compose well with attention; learned absolute positions don't extrapolate. **Rotary Position Embeddings** (Su et al. 2021) encode position by *rotating* $Q$ and $K$ by an angle that depends on absolute position, so that $\langle q_m, k_n \rangle$ becomes a function of $m - n$ only — a clean relative-position signal that respects the inner-product structure of attention.
+Sinusoidal absolute positions don't compose well with attention; learned absolute positions don't extrapolate. **Rotary Position Embeddings** (Su et al. 2021) encode position by *rotating* $Q$ and $K$ by an angle that depends on absolute position, so that $\langle q_m, k_n \rangle$ becomes a function of $m - n$ only: a clean relative-position signal that respects the inner-product structure of attention.
 
 ### 22.2 RoPE
 
@@ -2425,7 +2427,7 @@ $$
 q_m^\top k_n = q^\top R_{n - m} k
 $$
 
-which depends only on the **relative** position $n - m$. Magic.
+which depends only on the **relative** position $n - m$.
 
 In JAX:
 
@@ -2449,7 +2451,7 @@ LLMs trained at context $N_{\text{train}}$ break above their training length unl
 - **YaRN** (Peng et al. 2023): mixes both per-frequency-band — high frequencies untouched, low frequencies linearly interpolated, mid frequencies smoothly transitioned. Adds a *temperature* $1/t = 0.1 \ln(s) + 1$ on logits to compensate for entropy increase from longer sequences. State-of-the-art for long-context fine-tuning; used by Qwen2.5-1M, DeepSeek-V3.
 - **LongRoPE / LongRoPE2** (Microsoft 2024–25): per-dimension search of optimal scale factors via evolutionary optimization on a held-out long-context perplexity signal. Pushes Phi-3.5/4 to >2 M tokens.
 
-In JAX, all of these are pure-Python preprocessing of `inv_freq` — no kernel changes. MaxText's `MultiHeadAttention` exposes `rope_type ∈ {default, llama3, yarn, longrope}`.
+In JAX, all of these are pure-Python preprocessing of `inv_freq`, with no kernel changes. MaxText's `MultiHeadAttention` exposes `rope_type ∈ {default, llama3, yarn, longrope}`.
 
 ### 22.4 ALiBi
 
@@ -2465,7 +2467,7 @@ Trivially extrapolates. Used by BLOOM, MPT. Implement in a Pallas kernel by addi
 
 ### 22.5 When to choose what
 
-RoPE is the default in every serious 2025–2026 model — it's the only family with a developed ecosystem of context extension techniques (YaRN, LongRoPE) and works with FlashAttention's online softmax. ALiBi is simpler and extrapolates "for free" but underperforms long-context fine-tuned RoPE. Sinusoidal absolute is dead.
+RoPE is the default in every serious 2025–2026 model: it's the only family with a developed ecosystem of context extension techniques (YaRN, LongRoPE) and works with FlashAttention's online softmax. ALiBi is simpler and extrapolates "for free" but underperforms long-context fine-tuned RoPE. Sinusoidal absolute positions have fallen out of use.
 
 ---
 
@@ -2574,7 +2576,7 @@ class MoE(nnx.Module):
 | fp8 e4m3 | 4 | 3 | $\pm 448$ | $1.95 \times 10^{-3}$ |
 | fp8 e5m2 | 5 | 2 | $\pm 5.7 \times 10^{4}$ | $0.125$ |
 
-The key insight: **bf16 has fp32's range with fp16's storage.** That is why every modern training stack is bf16-by-default — gradients, activations, weights live in bf16, no loss scaling needed.
+The key insight: **bf16 has fp32's range with fp16's storage.** That is why every modern training stack is bf16 by default: gradients, activations, and weights live in bf16, with no loss scaling needed.
 
 **fp16 needs loss scaling** because gradients underflow below $\sim 6 \times 10^{-5}$; in bf16 the same value is representable.
 
@@ -2639,9 +2641,9 @@ $$
 \text{RMSNorm}(x) = \frac{x}{\sqrt{\frac{1}{D}\sum_i x_i^2 + \epsilon}} \cdot \gamma
 $$
 
-Drops the mean-centering and bias. ~30% faster (one less reduction, no bias term), and empirically equally good or better at scale. Used by LLaMA, Mistral, DeepSeek, Gemma — RMSNorm is the default in 2026.
+Drops the mean-centering and bias. ~30% faster (one less reduction, no bias term), and empirically equally good or better at scale. Used by LLaMA, Mistral, DeepSeek, and Gemma, RMSNorm is the default in 2026.
 
-**qk-norm** (Henry et al. 2020; revived by Gemma 2, Chameleon, OLMo 2). Apply RMSNorm to $Q$ and $K$ independently before attention: $Q' = \text{RMSNorm}(Q)$, $K' = \text{RMSNorm}(K)$. Bounds attention logits $q' \cdot k' \in [-d, d]$ (since both are unit-RMS), so softmax can never blow up. The single most reliable cure for "attention logit explosion."
+**qk-norm** (Henry et al. 2020; revived by Gemma 2, Chameleon, OLMo 2). Apply RMSNorm to $Q$ and $K$ independently before attention: $Q' = \text{RMSNorm}(Q)$, $K' = \text{RMSNorm}(K)$. Bounds attention logits $q' \cdot k' \in [-d, d]$ (since both are unit-RMS), so softmax can never blow up. The most reliable cure for "attention logit explosion."
 
 **z-loss** (PaLM 2022):
 
@@ -2697,7 +2699,7 @@ Memory:
 - Gradient checkpoints (4/layer): ~21 TB.
 - Total: 21.6 TB. Per chip on 8960 chips: 2.4 GB.
 
-That's well below the 96 GB v5p HBM. Memory is not the constraint here — communication is.
+That's well below the 96 GB v5p HBM, so the bottleneck here is communication rather than memory.
 
 ### 25.3 The four parallelism strategies (book equations)
 
@@ -2745,7 +2747,7 @@ $$
 \frac{B}{N} > \frac{\alpha^2}{M_X M_Y F}, \quad \alpha = C / W_{\text{ici}} = 2550
 $$
 
-Min per-device batch: $\sim 100$ tokens/chip — **8× smaller than pure FSDP/DP**. This is what enables training on 18,000+ chips with modest batch sizes.
+Min per-device batch: $\sim 100$ tokens/chip, **8× smaller than pure FSDP/DP**. This is what enables training on 18,000+ chips with modest batch sizes.
 
 ### 25.5 Plugging in for LLaMA-3-70B
 
@@ -2796,7 +2798,7 @@ To restate from Chapter 21 in system terms: prefill is *arithmetic-intensity-ric
 - **Prefill**: maximize batch sequence-length dim; use FlashAttention-3 in fp8; chunked prefill (split a 32 K prompt into 2 K chunks so prefill doesn't starve concurrent decodes).
 - **Decode**: maximize batch *count*, paged KV, quantized weights, speculative decoding, multi-token prediction.
 
-**Disaggregated serving** (DistServe, Splitwise, Mooncake): run prefill and decode on *different* hardware pools — prefill on H100s with high FLOPs, decode on B200s or TPU v6e with high HBM bandwidth. The KV cache is RDMA-transferred between them. JetStream and SGLang both support disaggregation in 2025+.
+**Disaggregated serving** (DistServe, Splitwise, Mooncake): run prefill and decode on *different* hardware pools, prefill on H100s with high FLOPs, decode on B200s or TPU v6e with high HBM bandwidth. The KV cache is RDMA-transferred between them. JetStream and SGLang both support disaggregation in 2025+.
 
 ### 26.2 The book's inference equations
 
@@ -2872,7 +2874,7 @@ JetStream's scheduler is in `jetstream/core/orchestrator.py`; SGLang-jax mirrors
 
 ### 26.6 Speculative decoding
 
-Decode is HBM-bound — so the chip has spare FLOPs. **Speculative decoding** (Leviathan et al. 2022, Chen et al. 2023) uses them by running a **small draft model** for $k$ steps, then **verifying with the big model in one parallel forward pass**. Whichever prefix the big model accepts (under rejection-sampling that keeps the output distribution exact) is committed; on a reject, the big model samples one replacement token.
+Decode is HBM-bound, so the chip has spare FLOPs. **Speculative decoding** (Leviathan et al. 2022, Chen et al. 2023) uses them by running a **small draft model** for $k$ steps, then **verifying with the big model in one parallel forward pass**. Whichever prefix the big model accepts (under rejection-sampling that keeps the output distribution exact) is committed; on a reject, the big model samples one replacement token.
 
 Effective speedup:
 
@@ -2911,7 +2913,7 @@ For a 70 B model on a single H100 node (8 × H100):
 | fp8 W8A8 + paged KV + continuous batching | — | ~30 K (B=256) |
 | + speculative (draft 1B, $\alpha$=0.75, $k$=4) | — | ~80 K |
 
-Each layer of this stack is a Pallas kernel (or a cuDNN call from `jax.nn`) plus a scheduler change. The lesson: in 2026, you do not write attention; you compose kernels and shardings.
+Each layer of this stack is a Pallas kernel (or a cuDNN call from `jax.nn`) plus a scheduler change. The lesson: in 2026, you rarely write attention yourself; you compose kernels and shardings.
 
 ---
 
@@ -2919,9 +2921,9 @@ Each layer of this stack is a Pallas kernel (or a cuDNN call from `jax.nn`) plus
 
 XLA is excellent for the common case. It generates near-peak kernels for matmuls, fuses chains of elementwise ops, picks reasonable layouts. But "near-peak for the common case" is not the same as "peak for your case." If you write FlashAttention-3 with `jnp.einsum`, you'll get a multi-kernel decomposition that materializes the $T \times S$ score matrix in HBM. If you write a paged-KV attention with `vmap` and indexing, you'll get correct code at decode-time speeds that are 2–5× off the theoretical floor. The fix is to drop a level: **write the kernel yourself.**
 
-**Pallas** (<https://docs.jax.dev/en/latest/pallas/>) is JAX's kernel-authoring DSL. It gives you the controls — block sizes, memory placement, manual DMAs, tensor-core invocation — without leaving the JAX ecosystem. A `pallas_call` slots into your model code as a regular callable that composes with `jit`, `vmap`, `shard_map`, and (with `custom_vjp`) `grad`.
+**Pallas** (<https://docs.jax.dev/en/latest/pallas/>) is JAX's kernel-authoring DSL. It gives you the controls (block sizes, memory placement, manual DMAs, tensor-core invocation) without leaving the JAX ecosystem. A `pallas_call` slots into your model code as a regular callable that composes with `jit`, `vmap`, `shard_map`, and (with `custom_vjp`) `grad`.
 
-This part covers the programming model (Chapter 27), the two main backends — Mosaic-TPU and Mosaic-GPU/Triton (28–29) — and worked kernels for the canonical cases (30).
+This part covers the programming model (Chapter 27), the two main backends, Mosaic-TPU and Mosaic-GPU/Triton (28–29), and worked kernels for the canonical cases (30).
 
 ---
 
@@ -2929,11 +2931,11 @@ This part covers the programming model (Chapter 27), the two main backends — M
 
 ### 27.1 What Pallas is
 
-Pallas is a JAX-embedded kernel DSL. You write a Python function that looks like ordinary `jax.numpy`, wrap it in `pl.pallas_call`, and JAX lowers — *not* to XLA HLO, but to one of three lower-level kernel compilers:
+Pallas is a JAX-embedded kernel DSL. You write a Python function that looks like ordinary `jax.numpy`, wrap it in `pl.pallas_call`, and JAX lowers it, not to XLA HLO but to one of three lower-level kernel compilers:
 
 | Backend | Target | Compiler path |
 | --- | --- | --- |
-| **Mosaic-TPU** | TPU v4 / v5e / v5p / v6 (Trillium) | Pallas IR → Mosaic dialect → LLO |
+| **Mosaic-TPU** | TPU v4 / v5e / v5p / v6e (Trillium) / v7 (Ironwood) | Pallas IR → Mosaic dialect → LLO |
 | **Mosaic-GPU** | NVIDIA Hopper (H100) and Blackwell (B100/B200) | Pallas IR → MLIR → PTX |
 | **Triton** | NVIDIA Ampere / Hopper (older path) | Pallas IR → Triton IR → PTX |
 
@@ -2998,7 +3000,7 @@ def matmul(x, y, *, bm=128, bn=128, bk=128):
 
 Three points:
 
-1. The K loop is *inside* the grid. Pallas accumulates by passing the same `o_ref` tile across all K iterations sharing $(i, j)$ — the input-output aliased accumulator pattern. On TPU the accumulator lives in VMEM; on GPU it lives in registers.
+1. The K loop is *inside* the grid. Pallas accumulates by passing the same `o_ref` tile across all K iterations sharing $(i, j)$, the input-output aliased accumulator pattern. On TPU the accumulator lives in VMEM; on GPU it lives in registers.
 2. `pl.program_id(axis)` returns the current grid coordinate (the equivalent of `tl.program_id` in Triton or `blockIdx` in CUDA).
 3. `pl.when(...)` is structured if/else for first-iteration zero-init.
 
@@ -3006,7 +3008,7 @@ Three points:
 
 - **`jit`**: a `pallas_call` is a JAX primitive. It traces, lowers, and caches. You always wrap the call site in `jit`.
 - **`vmap`**: prepends a grid dimension and updates each `BlockSpec.index_map` to thread the new axis. Cleanest way to batch a kernel.
-- **`grad`**: Pallas calls are *not automatically differentiable* — the kernel body is opaque to autodiff. To use a Pallas kernel inside an autodiff path, wrap with `jax.custom_vjp` and write the backward kernel by hand. FlashAttention's `mha_forward` + `mha_backward` glued by `custom_vjp` is the canonical pattern.
+- **`grad`**: Pallas calls are *not automatically differentiable*; the kernel body is opaque to autodiff. To use a Pallas kernel inside an autodiff path, wrap with `jax.custom_vjp` and write the backward kernel by hand. FlashAttention's `mha_forward` + `mha_backward` glued by `custom_vjp` is the standard pattern.
 - **`shard_map` / `pjit`**: clean — each device runs the kernel on its local shard, and you compose collectives outside. There is also a TPU story for collectives *inside* the kernel via remote DMAs.
 
 ### 27.6 Memory hierarchy
@@ -3021,7 +3023,7 @@ The key abstraction is that **`BlockSpec` + grid implicitly schedules the DMAs.*
 
 For *manual* DMA control (paged attention, ragged inputs, gather-scatter), Pallas exposes `pl.emit_pipeline(...)` (TPU), `pltpu.make_async_copy(src_ref, dst_ref, sem)` (TPU), `plgpu.copy_smem_to_gmem` / `plgpu.copy_gmem_to_smem` (Mosaic-GPU), and barrier semaphores for cross-iteration sync.
 
-The general rule on TPU: if your access pattern fits a strided `BlockSpec`, let Pallas emit the pipeline. If it doesn't — paged KV cache, dynamic shapes — drop to manual DMAs and `emit_pipeline`.
+The general rule on TPU: if your access pattern fits a strided `BlockSpec`, let Pallas emit the pipeline. If it doesn't (paged KV cache, dynamic shapes), drop to manual DMAs and `emit_pipeline`.
 
 ### 27.7 Block-level vs warp/thread-level
 
@@ -3029,7 +3031,7 @@ Pallas is deliberately **block-level**: every operation inside the kernel acts o
 
 Triton is also block-level on the surface (`tl.dot`, `tl.load(ptr + offsets)`) but exposes more thread-level primitives (`tl.atomic_add`, `tl.where` over arbitrary tiles, direct pointer arithmetic). The Pallas-Triton backend reuses Triton's lowering, so on GPU you can think of Pallas as "Triton with JAX semantics on the outside." Mosaic-GPU is more aggressive: lowers directly to MLIR and uses WGMMA/TMA Hopper-class primitives by name.
 
-The practical implication: in Pallas you essentially never write a lane-level loop. If you need "for each thread in this warp do X," you are using the wrong tool — drop to raw Triton via `jax.ffi`.
+The practical implication: in Pallas you essentially never write a lane-level loop. If you need "for each thread in this warp do X," you are using the wrong tool; drop to raw Triton via `jax.ffi`.
 
 ---
 
@@ -3046,7 +3048,7 @@ The TPU has three relevant compute units accessible from Pallas:
 
 ### 28.2 BlockSpec on TPU
 
-A TPU `BlockSpec` block shape **must be a multiple of (8, 128)** for VMEM tiles in the typical case — these are the sublane × lane dimensions of the VPU. If you write block shape (32, 256), you get four sublane groups by two lane groups; Pallas lays it out to maximize VPU throughput. Off-multiple shapes cost pad-out and slow paths.
+A TPU `BlockSpec` block shape **must be a multiple of (8, 128)** for VMEM tiles in the typical case; these are the sublane × lane dimensions of the VPU. If you write block shape (32, 256), you get four sublane groups by two lane groups; Pallas lays it out to maximize VPU throughput. Off-multiple shapes cost pad-out and slow paths.
 
 ### 28.3 Using the systolic array
 
@@ -3210,7 +3212,7 @@ Reasons XLA falls short:
 5. **Decode-time inference kernels.** Tiny matmuls where XLA's dispatch overhead dominates.
 6. **Communication-fused kernels** (TPU). AllReduce-fused matmul for tensor parallelism.
 
-For plain training-step kernels — embedding lookup, dense matmul, GELU, softmax, layernorm — XLA is at or very near peak. Don't write Pallas there.
+For plain training-step kernels (embedding lookup, dense matmul, GELU, softmax, layernorm), XLA is at or very near peak. Don't write Pallas there.
 
 ### 30.5 Gotchas
 
@@ -3255,7 +3257,7 @@ $$
 \text{achieved FLOPs/s} = \frac{6 \cdot \text{params} \cdot \text{tokens per step}}{T_{\text{step}}}
 $$
 
-Healthy MFUs in 2026: **40–55% on TPU v5p for dense Transformers; 30–45% on H100 for FSDP+TP**. If you're below 25%, something is leaving 2× on the table — and you should profile.
+Healthy MFUs in 2026: **40–55% on TPU v5p for dense Transformers; 30–45% on H100 for FSDP+TP**. If you're below 25%, something is leaving 2× on the table, and you should profile.
 
 ### 31.2 Capturing traces
 
@@ -3313,7 +3315,7 @@ $$
 T_{\text{math}} = \frac{2 \cdot 32 \cdot 1024 \cdot 8192}{23 \times 10^{12} \cdot 8} = 95.6 \text{ ms}
 $$
 
-Measured: **96 ms**. The kernel is at peak — no further optimization possible without changing shapes or precision.
+Measured: **96 ms**. The kernel is at peak; no further optimization is possible without changing shapes or precision.
 
 ### 31.6 Live memory inspection
 
@@ -3514,7 +3516,7 @@ loader = DataLoader(dataset, batch_size=B, collate_fn=numpy_collate)
 
 Or migrate to Grain (Chapter 11) for determinism and multi-host correctness.
 
-**5. Checkpoints.** Replace `torch.save` / `torch.load` with Orbax (Chapter 12). Conversion of existing PyTorch checkpoints requires mapping parameter names — typically a one-time script.
+**5. Checkpoints.** Replace `torch.save` / `torch.load` with Orbax (Chapter 12). Conversion of existing PyTorch checkpoints requires mapping parameter names, typically a one-time script.
 
 ### 34.2 Side-by-side cheat sheet
 
@@ -3588,27 +3590,27 @@ For multi-device, add: `params = jax.device_put(params, NamedSharding(mesh, P())
 
 ### 35.3 The pattern, over and over
 
-This compositional pattern — small pure pieces, layered transformations — is JAX's defining strength. It is what makes "this is the math" and "this is fast distributed code" feel like the same statement, just composed differently.
+This compositional pattern, small pure pieces and layered transformations, is JAX's defining strength. It is what makes "this is the math" and "this is fast distributed code" feel like the same statement, just composed differently.
 
-That is the lesson of the entire guide. Master the parts. Compose them. The rest is detail.
+That is the lesson of the entire guide: master the parts, compose them, and the rest is detail.
 
 ---
 
 # Conclusion
 
-JAX is a paradigm shift in high-performance numerical computing. It moves away from imperative, object-oriented frameworks and toward an explicit, functional, transformation-oriented model. The shift requires investment — purity, immutability, explicit state — and rewards it with composability and performance no imperative system can match.
+JAX is a paradigm shift in high-performance numerical computing. It moves away from imperative, object-oriented frameworks and toward an explicit, functional, transformation-oriented model. The shift requires investment (purity, immutability, explicit state) and rewards it with composability and performance no imperative system can match.
 
-The five pillars (`grad`, `jit`, `vmap`, `shard_map`, `pmap`) are not isolated tools but a *grammar* for computation. Every advanced technique in this guide — FSDP, FlashAttention, paged KV cache, MoE expert parallelism, Pallas kernels — emerges from layering those primitives on small, verifiable building blocks.
+The five pillars (`grad`, `jit`, `vmap`, `shard_map`, `pmap`) are less a set of isolated tools than a *grammar* for computation. Every advanced technique in this guide (FSDP, FlashAttention, paged KV cache, MoE expert parallelism, Pallas kernels) emerges from layering those primitives on small, verifiable building blocks.
 
 The hardware substrate (Part II) is what gives JAX its edge, because JAX's transformations are aware of the substrate in a way other frameworks aren't. Roofline thinking. Communication-cost reasoning. Sharding as a first-class type. These aren't just optimizations; they're a *language* for talking about modern accelerators.
 
-The modern ecosystem (Part III) — Flax NNX, Equinox, Optax, Grain, Orbax — has matured into something coherent. The "story, flow, depth" the original ask asked for is real now. You can build, train, and ship a 70 B-parameter model with code that is shorter and more readable than what PyTorch + accelerate + DeepSpeed gives you.
+The modern ecosystem (Part III), Flax NNX, Equinox, Optax, Grain, and Orbax, has matured into something coherent. You can build, train, and ship a 70 B-parameter model with code that is shorter and more readable than what PyTorch + accelerate + DeepSpeed gives you.
 
-The LLM stack (Part V) is where the field has moved fastest. FlashAttention, paged KV, GQA, RoPE/YaRN, MoE, FP8, μP — these were all research in 2023 and are all production by 2026. JAX has first-class support for every one of them, often as Pallas reference implementations.
+The LLM stack (Part V) is where the field has moved fastest. FlashAttention, paged KV, GQA, RoPE/YaRN, MoE, FP8, μP: these were all research in 2023 and are all production by 2026. JAX has first-class support for every one of them, often as Pallas reference implementations.
 
-Pallas (Part VI) is the escape hatch. When XLA can't generate the kernel you need, you write it. The `pallas_call` slots into your model the same as any other op — composing with `jit`, `vmap`, `shard_map`. Triton on the GPU. Mosaic on the TPU. One source.
+Pallas (Part VI) is the escape hatch. When XLA can't generate the kernel you need, you write it. The `pallas_call` slots into your model the same as any other op, composing with `jit`, `vmap`, `shard_map`. Triton on the GPU, Mosaic on the TPU, one source.
 
-For the ambitious practitioner, mastering this stack offers a durable advantage. You can express ideas more directly than in PyTorch, scale them further than in TensorFlow, and reason about their performance in ways that aren't possible without seeing through the abstraction. The investment pays compound returns.
+For the ambitious practitioner, mastering this stack offers a durable advantage. You can express ideas more directly than in PyTorch, scale them further than in TensorFlow, and reason about their performance in ways that aren't possible without seeing through the abstraction. The investment compounds.
 
 ---
 
@@ -3631,6 +3633,7 @@ For the ambitious practitioner, mastering this stack offers a durable advantage.
 - **NVIDIA Blackwell architecture brief** — <https://resources.nvidia.com/en-us-blackwell-architecture>
 - **TPU v5p docs** — <https://cloud.google.com/tpu/docs/v5p>
 - **Trillium (v6e) docs** — <https://cloud.google.com/tpu/docs/v6e>
+- **Ironwood (v7 / tpu7x) docs** — <https://cloud.google.com/tpu/docs/tpu7x>
 - **TPU v4 paper** (Jouppi et al., ISCA 2023) — arXiv:2304.01433
 
 ### Production stacks

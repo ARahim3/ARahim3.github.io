@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIGReg — the shadow test</title>
+<style>
+  :root{
+    --bg:#f7f6f1; --ink:#3a3a34; --muted:#8c8c82; --faint:#b9b8ad;
+    --green:#4f9e6a; --green-d:#2f8a55; --green-fill:rgba(79,158,106,.13);
+    --gray-ar:#54585b; --line:#e3e2da;
+    --amber:#d29a3f; --red:#c8643f;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --serif:Georgia,"Times New Roman",serif;
+    --sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:940px;margin:0 auto;padding:18px 20px 26px;}
+  .stage{position:relative}
+  canvas{display:block;width:100%;height:auto;touch-action:none;}
+
+  .caption{max-width:760px;margin:6px auto 0;text-align:center;
+    font-family:var(--serif);font-style:italic;font-size:17px;line-height:1.62;
+    color:#5b5b53;}
+  .caption b{font-style:normal;font-weight:600;color:#46463f}
+
+  .bar{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;
+    margin-top:18px;}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;}
+  .seg button{border:0;background:transparent;color:var(--muted);font:600 12.5px var(--sans);
+    padding:8px 14px;cursor:pointer;border-right:1px solid var(--line);transition:background .15s,color .15s;}
+  .seg button:last-child{border-right:0}
+  .seg button.on{background:var(--green);color:#fff}
+  .seg button:not(.on):hover{background:#f0efe8}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;
+    font:600 12.5px var(--sans);padding:8px 14px;cursor:pointer;transition:border-color .15s,opacity .15s;
+    display:inline-flex;align-items:center;gap:7px;}
+  .btn:hover{border-color:var(--faint)}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn.go{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .btn.go:hover{opacity:.9}
+  .btn.ghost{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage"><canvas id="cv"></canvas></div>
+
+  <p class="caption" id="cap">
+    <b>SIGReg in one picture</b> (Cramér–Wold + Epps–Pulley). Project the embedding cloud onto random
+    1-D directions; because the cloud is isotropic, the shadow along every direction is the same
+    standard-normal bell curve. SIGReg sweeps many directions and pushes each shadow toward that curve.
+  </p>
+
+  <div class="bar">
+    <div class="seg" id="seg">
+      <button data-t="iso" class="on">Isotropic</button>
+      <button data-t="stretch">Stretched</button>
+      <button data-t="bimodal">Two clusters</button>
+    </div>
+    <button class="btn go" id="fix" disabled>▶ apply SIGReg</button>
+    <button class="btn ghost" id="pause">pause</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+
+  // ---------- data ----------
+  const NPTS=42;
+  let pts=[], target=[];          // {x,y} in world units (std ~1 for isotropic)
+  let cloud="iso";
+  function gauss(){let u=0,v=0;while(u===0)u=Math.random();while(v===0)v=Math.random();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  function makeIso(){const a=[];for(let i=0;i<NPTS;i++)a.push({x:gauss(),y:gauss()});return a;}
+  function seed(type){
+    cloud=type;
+    if(type==="iso"){pts=makeIso();}
+    else if(type==="stretch"){
+      pts=[];const c=Math.cos(0.5),s=Math.sin(0.5);
+      for(let i=0;i<NPTS;i++){const x=gauss()*1.95,y=gauss()*0.45;
+        pts.push({x:x*c-y*s,y:x*s+y*c});}           // a tilted, elongated blob
+    }else{ // bimodal
+      pts=[];for(let i=0;i<NPTS;i++){const sgn=i<NPTS/2?-1:1;
+        pts.push({x:sgn*1.7+gauss()*0.42,y:gauss()*0.72});}
+    }
+    target=makeIso();
+  }
+  seed("iso");
+
+  // ---------- projection + Epps–Pulley gap ----------
+  let theta=0, speed=0.006, paused=false;
+  function projections(){
+    const c=Math.cos(theta),s=Math.sin(theta),z=[];
+    for(const p of pts) z.push(p.x*c+p.y*s);
+    return z;
+  }
+  // Epps–Pulley: T = ∫ w(t)|φ_n(t) − φ_0(t)|² dt, target N(0,1): φ_0=e^{-t²/2}, w=e^{-t²/2}
+  function eppsPulley(z){
+    const n=z.length; let T=0; const dt=0.25;
+    for(let t=-5;t<=5;t+=dt){
+      let re=0,im=0;
+      for(let j=0;j<n;j++){re+=Math.cos(t*z[j]);im+=Math.sin(t*z[j]);}
+      re/=n;im/=n;
+      const phi0=Math.exp(-t*t/2), w=Math.exp(-t*t/2);
+      T+=w*((re-phi0)*(re-phi0)+im*im)*dt;
+    }
+    return T;
+  }
+
+  // ---------- canvas ----------
+  let W=0,H=0,dpr=1;
+  function resize(){
+    const cssW=cv.parentElement.clientWidth;
+    const cssH=Math.max(300,Math.min(440,Math.round(cssW*0.50)));
+    dpr=Math.min(window.devicePixelRatio||1,2);
+    cv.width=cssW*dpr;cv.height=cssH*dpr;cv.style.height=cssH+"px";
+    W=cssW;H=cssH;ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener("resize",resize);resize();
+
+  function arrowHead(x,y,ang,col){
+    const L=9;ctx.fillStyle=col;ctx.beginPath();
+    ctx.moveTo(x,y);
+    ctx.lineTo(x-L*Math.cos(ang-0.4),y-L*Math.sin(ang-0.4));
+    ctx.lineTo(x-L*Math.cos(ang+0.4),y-L*Math.sin(ang+0.4));
+    ctx.closePath();ctx.fill();
+  }
+
+  function draw(){
+    if(!paused && !morph.active) theta+=speed;
+    ctx.clearRect(0,0,W,H);
+
+    // ---- layout ----
+    const cx=W*0.215, cyy=H*0.46, R=Math.min(W,H)*0.30;
+    const sCloud=R/2.7;                 // world unit -> px (≈2.7σ fits circle)
+    const rcx=W*0.795, rbase=H*0.66, rHalf=W*0.165, rPeak=H*0.40;
+
+    const c=Math.cos(theta), s=Math.sin(theta);
+    const z=projections();
+    const T=eppsPulley(z);
+
+    // ===== LEFT: cloud + projection =====
+    // dashed boundary
+    ctx.setLineDash([3,5]);ctx.strokeStyle="#cfcec4";ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.arc(cx,cyy,R,0,2*Math.PI);ctx.stroke();ctx.setLineDash([]);
+
+    // projection drop-lines (faint) + shadow dots on the axis
+    for(let i=0;i<pts.length;i++){
+      const px=cx+pts[i].x*sCloud, py=cyy-pts[i].y*sCloud;
+      const fx=cx+z[i]*c*sCloud, fy=cyy-z[i]*s*sCloud;   // foot on axis
+      ctx.strokeStyle="rgba(79,158,106,.16)";ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(fx,fy);ctx.stroke();
+    }
+    // axis line + arrow
+    const L=R*1.16;
+    const ax0=cx-L*c, ay0=cyy+L*s, ax1=cx+L*c, ay1=cyy-L*s;
+    ctx.strokeStyle="#54585b";ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(ax0,ay0);ctx.lineTo(ax1,ay1);ctx.stroke();
+    arrowHead(ax1,ay1,Math.atan2(-s,c),"#54585b");
+    // shadow dots
+    for(let i=0;i<pts.length;i++){
+      const fx=cx+z[i]*c*sCloud, fy=cyy-z[i]*s*sCloud;
+      ctx.beginPath();ctx.arc(fx,fy,2.2,0,2*Math.PI);
+      ctx.fillStyle="rgba(79,158,106,.5)";ctx.fill();
+    }
+    // cloud points
+    for(const p of pts){
+      const px=cx+p.x*sCloud, py=cyy-p.y*sCloud;
+      ctx.beginPath();ctx.arc(px,py,4.1,0,2*Math.PI);
+      ctx.fillStyle="#4f9e6a";ctx.fill();
+    }
+    // left label
+    ctx.fillStyle="#8c8c82";ctx.font="13px "+getMono();ctx.textAlign="center";
+    ctx.fillText("project onto a random direction",cx,cyy+R+34);
+
+    // ===== MIDDLE: shadow arrow =====
+    const mx0=W*0.40, mx1=W*0.585, my=cyy;
+    ctx.strokeStyle="#a9a99f";ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(mx0,my);ctx.lineTo(mx1,my);ctx.stroke();
+    arrowHead(mx1,my,0,"#a9a99f");
+    ctx.fillStyle="#9a9a90";ctx.font="13px "+getMono();ctx.textAlign="center";
+    ctx.fillText("shadow",(mx0+mx1)/2,my-12);
+
+    // ===== RIGHT: target bell + live shadow density =====
+    // baseline
+    ctx.strokeStyle="#e0dfd6";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(rcx-rHalf-6,rbase);ctx.lineTo(rcx+rHalf+6,rbase);ctx.stroke();
+
+    const vToX=v=>rcx+(v/4)*rHalf;
+    const dToY=d=>rbase-(d/0.42)*rPeak;
+    // target N(0,1) filled bell
+    ctx.beginPath();
+    for(let v=-4;v<=4.0001;v+=0.1){
+      const d=Math.exp(-v*v/2)/Math.sqrt(2*Math.PI);
+      const X=vToX(v),Y=dToY(d);
+      if(v<=-4)ctx.moveTo(X,Y);else ctx.lineTo(X,Y);
+    }
+    ctx.lineTo(vToX(4),rbase);ctx.lineTo(vToX(-4),rbase);ctx.closePath();
+    ctx.fillStyle="rgba(79,158,106,.12)";ctx.fill();
+    ctx.strokeStyle="rgba(79,158,106,.45)";ctx.lineWidth=1.4;
+    ctx.beginPath();
+    for(let v=-4;v<=4.0001;v+=0.1){
+      const d=Math.exp(-v*v/2)/Math.sqrt(2*Math.PI);
+      const X=vToX(v),Y=dToY(d);
+      if(v<=-4)ctx.moveTo(X,Y);else ctx.lineTo(X,Y);
+    }
+    ctx.stroke();
+
+    // live KDE of the projection (the actual shadow)
+    const h=0.36, n=z.length;
+    ctx.strokeStyle="#2f8a55";ctx.lineWidth=2.4;
+    ctx.beginPath();let first=true;
+    for(let v=-4;v<=4.0001;v+=0.08){
+      let d=0;for(let j=0;j<n;j++){const u=(v-z[j])/h;d+=Math.exp(-u*u/2);}
+      d/=(n*h*Math.sqrt(2*Math.PI));
+      const X=vToX(v),Y=dToY(d);
+      if(first){ctx.moveTo(X,Y);first=false;}else ctx.lineTo(X,Y);
+    }
+    ctx.stroke();
+
+    // right labels (dynamic + honest)
+    ctx.textAlign="center";
+    if(cloud==="iso"){
+      ctx.fillStyle="#3f8f5f";ctx.font="14px "+getMono();
+      ctx.fillText("always \u2248 N(0, 1)",rcx,rbase+30);
+      ctx.fillStyle="#9a9a90";ctx.font="12px "+getMono();
+      ctx.fillText("a standard bell curve",rcx,rbase+48);
+    }else{
+      ctx.fillStyle="#c8643f";ctx.font="14px "+getMono();
+      ctx.fillText("shape depends on direction",rcx,rbase+30);
+      ctx.fillStyle="#9a9a90";ctx.font="12px "+getMono();
+      ctx.fillText("target N(0,1) shown faint",rcx,rbase+48);
+    }
+
+    // Epps–Pulley readout
+    let col= T<0.03 ? "#3f8f5f" : (T<0.10? "#d29a3f" : "#c8643f");
+    ctx.fillStyle="#b1b1a7";ctx.font="11px "+getMono();ctx.textAlign="right";
+    ctx.fillText("Epps\u2013Pulley gap",rcx+rHalf+6,H*0.16);
+    ctx.fillStyle=col;ctx.font="600 16px "+getMono();
+    ctx.fillText("T = "+T.toFixed(3),rcx+rHalf+6,H*0.16+20);
+
+    // morph step
+    if(morph.active)stepMorph();
+
+    requestAnimationFrame(draw);
+  }
+  function getMono(){return "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";}
+
+  // ---------- SIGReg morph (anisotropic -> isotropic) ----------
+  const morph={active:false,t:0,from:null};
+  function startMorph(){
+    morph.from=pts.map(p=>({x:p.x,y:p.y}));
+    morph.t=0;morph.active=true;
+  }
+  function stepMorph(){
+    morph.t+=1/90;
+    let k=Math.min(1,morph.t); k=k*k*(3-2*k);  // smoothstep
+    for(let i=0;i<pts.length;i++){
+      pts[i].x=morph.from[i].x+(target[i].x-morph.from[i].x)*k;
+      pts[i].y=morph.from[i].y+(target[i].y-morph.from[i].y)*k;
+    }
+    if(morph.t>=1){morph.active=false;cloud="iso";setSeg("iso");document.getElementById("fix").disabled=true;}
+  }
+
+  // ---------- UI ----------
+  function setSeg(t){document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));}
+  document.querySelectorAll("#seg button").forEach(b=>{
+    b.addEventListener("click",()=>{
+      morph.active=false;seed(b.dataset.t);setSeg(b.dataset.t);
+      document.getElementById("fix").disabled=(b.dataset.t==="iso");
+    });
+  });
+  document.getElementById("fix").addEventListener("click",()=>{ if(cloud!=="iso")startMorph(); });
+  document.getElementById("pause").addEventListener("click",function(){
+    paused=!paused;this.textContent=paused?"play":"pause";
+  });
+
+  draw();
+})();
+</script>
+</body>
+</html>

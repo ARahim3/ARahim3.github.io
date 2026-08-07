@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&amp;display=swap');
+      text { font-family: 'Newsreader', 'Source Serif 4', Georgia, serif; }
+      .mono { font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="630" fill="#faf8f3"/>
+
+  <!-- eyebrow -->
+  <rect x="130" y="98" width="36" height="2.5" fill="#2e9d6c"/>
+  <text class="mono" x="178" y="107" font-size="15" font-weight="500" letter-spacing="2.5" fill="#8a8682">SPECULATIVE DECODING · APPLE SILICON</text>
+
+  <!-- title -->
+  <text class="mono" x="124" y="248" font-size="92" font-weight="600" letter-spacing="-3" fill="#2a2725">mlx<tspan fill="#4D6BFE">-dspark</tspan></text>
+
+  <!-- subtitle -->
+  <text x="130" y="322" font-size="29" font-style="italic" fill="#5e5a58">DeepSeek's DSpark and z-lab's DFlash speculative decoding,</text>
+  <text x="130" y="360" font-size="29" font-style="italic" fill="#5e5a58">running natively on your Mac via MLX.</text>
+
+  <!-- motif: draft tokens, verified in one pass -->
+  <g>
+    <text class="mono" x="130" y="462" font-size="17" letter-spacing="0.5" fill="#8a8682">draft</text>
+    <g transform="translate(210, 436)">
+      <rect x="0"   y="0" width="34" height="34" rx="3" fill="#4D6BFE"/>
+      <rect x="46"  y="0" width="34" height="34" rx="3" fill="#4D6BFE"/>
+      <rect x="92"  y="0" width="34" height="34" rx="3" fill="#4D6BFE"/>
+      <rect x="138" y="0" width="34" height="34" rx="3" fill="#4D6BFE"/>
+      <rect x="184" y="0" width="34" height="34" rx="3" fill="#4D6BFE"/>
+      <rect x="230" y="0" width="34" height="34" rx="3" fill="none" stroke="#d9534f" stroke-width="2"/>
+      <line x1="238" y1="8" x2="256" y2="26" stroke="#d9534f" stroke-width="2"/>
+      <line x1="256" y1="8" x2="238" y2="26" stroke="#d9534f" stroke-width="2"/>
+    </g>
+    <text class="mono" x="530" y="462" font-size="26" fill="#c5beb3">→</text>
+    <text class="mono" x="580" y="462" font-size="17" letter-spacing="0.5" fill="#8a8682">verify once, keep five</text>
+  </g>
+
+  <!-- footer -->
+  <text class="mono" x="130" y="552" font-size="17" fill="#8a8682">github.com/ARahim3/mlx-dspark</text>
+</svg>

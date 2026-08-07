@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&amp;display=swap');
+      text { font-family: 'Newsreader', 'Source Serif 4', Georgia, serif; }
+      .mono { font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="630" fill="#faf8f3"/>
+
+  <!-- eyebrow -->
+  <rect x="130" y="98" width="36" height="2.5" fill="#2e9d6c"/>
+  <text class="mono" x="178" y="107" font-size="15" font-weight="500" letter-spacing="2.5" fill="#8a8682">TEXT TO SPEECH · 31 LANGUAGES</text>
+
+  <!-- title -->
+  <text class="mono" x="124" y="248" font-size="80" font-weight="600" letter-spacing="-3" fill="#2a2725">super<tspan fill="#1a5d3f">tonic</tspan>-server</text>
+
+  <!-- subtitle -->
+  <text x="130" y="322" font-size="29" font-style="italic" fill="#5e5a58">Local OpenAI-compatible TTS for Supertonic-3, with</text>
+  <text x="130" y="360" font-size="29" font-style="italic" fill="#5e5a58">sentence-level streaming. Pipecat- and LiveKit-ready.</text>
+
+  <!-- motif: text → waveform -->
+  <g>
+    <text class="mono" x="130" y="462" font-size="20" fill="#5e5a58">"speaks as it streams"</text>
+    <text class="mono" x="440" y="462" font-size="26" fill="#c5beb3">→</text>
+    <g transform="translate(490, 430)" fill="#2e9d6c">
+      <rect x="0"   y="18" width="7" height="12" rx="3"/>
+      <rect x="16"  y="10" width="7" height="28" rx="3"/>
+      <rect x="32"  y="4"  width="7" height="40" rx="3"/>
+      <rect x="48"  y="0"  width="7" height="48" rx="3"/>
+      <rect x="64"  y="8"  width="7" height="32" rx="3"/>
+      <rect x="80"  y="14" width="7" height="20" rx="3"/>
+      <rect x="96"  y="6"  width="7" height="36" rx="3"/>
+      <rect x="112" y="16" width="7" height="16" rx="3"/>
+    </g>
+  </g>
+
+  <!-- footer -->
+  <text class="mono" x="130" y="552" font-size="17" fill="#8a8682">github.com/ARahim3/supertonic-server</text>
+</svg>

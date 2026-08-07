@@ -183,21 +183,33 @@ nav.main-nav a .num {
 .hero h1 {
   font-family: var(--font-prose);
   font-weight: 400;
-  font-size: clamp(28px, 4.2vw, 38px);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  font-size: clamp(24px, 3.5vw, 31px);
+  line-height: 1.4;
+  letter-spacing: -0.005em;
   color: var(--ink);
   margin-bottom: 20px;
   text-wrap: pretty;
 }
 .hero h1 em {
   font-style: italic;
-  color: var(--accent-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+}
+.hero h1 .caret {
+  display: inline-block;
+  width: 0.34em;
+  height: 0.72em;
+  margin-left: 0.18em;
+  background: var(--accent);
+  animation: blink 1.1s steps(2) infinite;
+  vertical-align: -0.04em;
 }
 .hero .lede {
   font-family: var(--font-prose);
   font-size: 17px;
-  line-height: 1.55;
+  line-height: 1.6;
   color: var(--ink-soft);
   max-width: 58ch;
   text-wrap: pretty;
@@ -208,25 +220,17 @@ nav.main-nav a .num {
 }
 .hero .lede a:hover { color: var(--accent-ink); border-color: var(--accent); }
 
-/* mono-hero variant (default on home, matching the refined prototype) */
-body.hero-mono .hero h1 {
-  font-family: var(--font-mono);
-  font-size: clamp(17px, 2vw, 19px);
-  line-height: 1.55;
-  letter-spacing: -0.005em;
-  max-width: none;
+/* page-load reveal — hero + now card only, kept subtle */
+@media (prefers-reduced-motion: no-preference) {
+  .hero .eyebrow, .hero h1, .hero .lede, .now {
+    animation: rise .55s cubic-bezier(.2, .7, .3, 1) backwards;
+  }
+  .hero h1 { animation-delay: .07s; }
+  .hero .lede { animation-delay: .14s; }
+  .now { animation-delay: .22s; }
 }
-body.hero-mono .hero h1 em {
-  font-style: normal;
-  color: var(--accent-ink);
-  background: var(--accent-soft);
-  padding: 0 4px;
-}
-body.hero-mono .hero .lede {
-  font-family: var(--font-mono);
-  font-size: 13.5px;
-  line-height: 1.65;
-  max-width: none;
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
 }
 
 /* ── Sections ── */
@@ -293,7 +297,8 @@ section { margin-bottom: 56px; }
   content: '→';
   position: absolute;
   left: 0;
-  color: var(--ink-dim);
+  color: var(--accent-ink);
+  opacity: 0.7;
 }
 .now li:last-child { margin-bottom: 0; }
 .now li em {

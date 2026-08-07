@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="A field guide to JEPA — Yann LeCun's Joint-Embedding Predictive Architecture — built from first principles, then run on Apple Silicon with mlx-tune. What it is, why it works, how to use it." />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://arahim3.github.io/jepa.html" />
+  <meta property="og:title" content="JEPA, from First Principles to Your Mac, with mlx-tune — Abdur Rahim" />
+  <meta property="og:description" content="From the intuition behind JEPA — why it predicts in latent space, how it beats collapse — to training and fine-tuning I-JEPA, V-JEPA 2 and LeJEPA on your Mac with mlx-tune." />
+  <meta property="og:image" content="https://arahim3.github.io/jepa-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="JEPA, from first principles to your Mac, with mlx-tune — a field guide by Abdur Rahim. Title card with the collapse-to-isotropic-Gaussian motif." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta property="twitter:domain" content="arahim3.github.io" />
+  <meta property="twitter:url" content="https://arahim3.github.io/jepa.html" />
+  <meta name="twitter:title" content="JEPA, from First Principles to Your Mac, with mlx-tune — Abdur Rahim" />
+  <meta name="twitter:description" content="JEPA from first principles, then run it on Apple Silicon with mlx-tune." />
+  <meta name="twitter:image" content="https://arahim3.github.io/jepa-card.png" />
+
+  <title>JEPA, from First Principles to Your Mac, with mlx-tune — Abdur Rahim</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="256x256" href="/favicon-256.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- KaTeX for math -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+
+  <!-- highlight.js base (theme overridden below per data-theme) -->
+  <link id="hljs-light" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-light.min.css">
+  <link id="hljs-dark" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/atom-one-dark.min.css" disabled>
+
+  <script>
+    (function () {
+      var t = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/style.css" />
+
+  <!-- Guide-specific styles (shared with the JAX journey page's reading layout) -->
+  <style>
+    .guide-shell {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 24px 140px;
+    }
+    .guide-main { min-width: 0; }
+
+    @media (min-width: 1140px) {
+      .guide-shell {
+        max-width: 1024px;
+        display: grid;
+        grid-template-columns: 216px minmax(0, 1fr);
+        gap: 48px;
+        align-items: start;
+        transition: grid-template-columns .35s cubic-bezier(.4,0,.2,1),
+                    gap .35s cubic-bezier(.4,0,.2,1);
+      }
+      .guide-shell.toc-collapsed {
+        grid-template-columns: 0 minmax(0, 1fr);
+        gap: 0;
+      }
+      .guide-shell.toc-collapsed aside.toc-sticky {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .guide-shell.toc-collapsed .guide-main {
+        max-width: 760px;
+        margin: 0 auto;
+      }
+      .guide-shell.toc-collapsed .guide-prose p,
+      .guide-shell.toc-collapsed .guide-prose ul,
+      .guide-shell.toc-collapsed .guide-prose ol,
+      .guide-shell.toc-collapsed .guide-prose blockquote {
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
+
+    .progress {
+      position: fixed; top: 0; left: 0;
+      width: 0; height: 2px;
+      background: var(--accent);
+      z-index: 100;
+      transition: width .08s linear;
+    }
+
+    .guide-hero { margin-bottom: 36px; }
+    .guide-hero h1 {
+      font-family: var(--font-prose);
+      font-weight: 500;
+      font-size: clamp(30px, 3.4vw, 38px);
+      line-height: 1.2;
+      letter-spacing: -0.012em;
+      color: var(--ink);
+      margin-bottom: 18px;
+      max-width: 24ch;
+      text-wrap: pretty;
+    }
+    /* emphasis by ink italic + a thin accent rule, not by colouring the word */
+    .guide-hero h1 em {
+      font-style: italic;
+      color: var(--ink);
+      box-shadow: inset 0 -1px 0 0 var(--accent);
+    }
+    .guide-hero .lede {
+      font-family: var(--font-prose);
+      font-size: 17px;
+      line-height: 1.55;
+      color: var(--ink-soft);
+      max-width: 60ch;
+      text-wrap: pretty;
+    }
+
+    .attribution {
+      background: var(--bg-alt);
+      padding: 18px 22px;
+      border-left: 2px solid var(--accent);
+      margin: 0 0 36px;
+      font-family: var(--font-prose);
+      font-size: 14.5px;
+      line-height: 1.6;
+      color: var(--ink-soft);
+    }
+    .attribution .label {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--accent-ink);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .attribution a {
+      color: var(--ink);
+      border-bottom: 1px solid var(--rule);
+    }
+    .attribution a:hover { color: var(--accent-ink); border-color: var(--accent); }
+
+    /* mobile TOC drawer */
+    details.toc-mobile {
+      margin: 0 0 36px;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      padding: 10px 0;
+    }
+    details.toc-mobile > summary {
+      list-style: none;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    details.toc-mobile > summary::-webkit-details-marker { display: none; }
+    details.toc-mobile > summary::after {
+      content: '+';
+      font-size: 16px;
+      color: var(--ink-dim);
+    }
+    details.toc-mobile[open] > summary::after { content: '−'; }
+    details.toc-mobile ol {
+      list-style: none;
+      padding: 14px 0 4px;
+      counter-reset: chapter;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    details.toc-mobile li { padding: 3px 0; }
+    details.toc-mobile li.toc-h1 {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-top: 14px;
+      padding-bottom: 4px;
+    }
+    details.toc-mobile li.toc-h1:first-child { margin-top: 0; }
+    details.toc-mobile li.toc-h2 {
+      padding-left: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    details.toc-mobile a {
+      color: var(--ink-soft);
+      border: none;
+      display: block;
+      padding: 2px 0;
+    }
+    details.toc-mobile a:hover { color: var(--accent-ink); }
+
+    aside.toc-sticky {
+      display: none;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.6;
+      padding: 8px 0;
+      overflow-x: hidden;
+      transition: opacity .25s ease;
+    }
+    aside.toc-sticky::-webkit-scrollbar { width: 4px; }
+    aside.toc-sticky::-webkit-scrollbar-track { background: transparent; }
+    aside.toc-sticky::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 2px; }
+    aside.toc-sticky .toc-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px 12px 12px;
+      border-bottom: 1px solid var(--rule-soft);
+      margin-bottom: 10px;
+    }
+    aside.toc-sticky .toc-label {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+    aside.toc-sticky .toc-collapse-btn {
+      background: transparent;
+      border: none;
+      color: var(--ink-dim);
+      font-family: var(--font-mono);
+      font-size: 15px;
+      line-height: 1;
+      padding: 2px 8px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: color .15s, background .15s;
+    }
+    aside.toc-sticky .toc-collapse-btn:hover {
+      color: var(--accent-ink);
+      background: var(--bg-alt);
+    }
+    aside.toc-sticky ol { list-style: none; padding: 0 12px; }
+    aside.toc-sticky li.toc-h1 {
+      font-size: 10px;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-top: 12px;
+      padding: 2px 0;
+    }
+    aside.toc-sticky li.toc-h1:first-child { margin-top: 0; }
+    aside.toc-sticky li.toc-h2 {
+      padding: 1px 0 1px 10px;
+      border-left: 1px solid var(--rule-soft);
+      margin-left: 2px;
+    }
+    aside.toc-sticky li.toc-h2.active {
+      border-left-color: var(--accent);
+    }
+    aside.toc-sticky a {
+      color: var(--ink-dim);
+      border: none;
+      display: block;
+      padding: 1px 0;
+      white-space: normal;
+      overflow-wrap: break-word;
+      line-height: 1.4;
+    }
+    aside.toc-sticky a:hover { color: var(--accent-ink); }
+    aside.toc-sticky li.toc-h2.active a { color: var(--accent-ink); }
+
+    @media (min-width: 1140px) {
+      aside.toc-sticky {
+        display: block;
+        position: sticky;
+        top: 32px;
+        align-self: start;
+        max-height: calc(100vh - 64px);
+        overflow-y: auto;
+      }
+      /* the sidebar is the contents on desktop — don't also show the drawer,
+         unless the sidebar has been collapsed away */
+      details.toc-mobile { display: none; }
+      .guide-shell.toc-collapsed details.toc-mobile { display: block; }
+    }
+
+    .guide-prose {
+      font-family: var(--font-prose);
+      font-size: clamp(16px, calc(14.5px + 0.28vw), 18.5px);
+      line-height: 1.65;
+      color: var(--ink);
+    }
+    .guide-prose > *:first-child { margin-top: 0; }
+    .guide-prose p {
+      margin: 0 0 18px;
+      max-width: 72ch;
+      text-wrap: pretty;
+    }
+    @media (min-width: 1140px) {
+      .guide-prose { line-height: 1.7; }
+    }
+    .guide-prose strong { font-weight: 600; color: var(--ink); }
+    .guide-prose em { font-style: italic; }
+
+    .guide-prose a {
+      color: var(--accent-ink);
+      border-bottom: 1px solid var(--accent-soft);
+    }
+    .guide-prose a:hover { border-color: var(--accent); }
+
+    .guide-prose h1 {
+      font-family: var(--font-prose);
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      margin: 72px 0 8px;
+      padding-top: 28px;
+      border-top: 1px solid var(--rule);
+      color: var(--ink);
+    }
+    .guide-prose h1::before {
+      content: 'part';
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent-ink);
+      margin-bottom: 10px;
+    }
+    .guide-prose h2 {
+      font-family: var(--font-prose);
+      font-weight: 500;
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: -0.005em;
+      margin: 48px 0 14px;
+      color: var(--ink);
+    }
+    .guide-prose h3 {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      margin: 32px 0 10px;
+      color: var(--ink);
+      text-transform: uppercase;
+    }
+    .guide-prose h4 {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin: 24px 0 8px;
+    }
+
+    .guide-prose .anchor-link {
+      color: var(--ink-dim);
+      margin-left: 8px;
+      opacity: 0;
+      border: none;
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 0.7em;
+      transition: opacity .15s, color .15s;
+    }
+    .guide-prose h1:hover .anchor-link,
+    .guide-prose h2:hover .anchor-link,
+    .guide-prose h3:hover .anchor-link {
+      opacity: 1;
+    }
+    .guide-prose .anchor-link:hover { color: var(--accent-ink); }
+
+    .guide-prose ul, .guide-prose ol {
+      margin: 0 0 18px;
+      padding-left: 24px;
+      max-width: 72ch;
+    }
+    .guide-prose li { margin-bottom: 6px; line-height: 1.6; }
+    .guide-prose ul li::marker { color: var(--ink-dim); }
+    .guide-prose ol li::marker { color: var(--ink-dim); font-family: var(--font-mono); font-size: 0.9em; }
+
+    .guide-prose blockquote {
+      margin: 22px 0;
+      padding: 6px 18px;
+      border-left: 2px solid var(--accent);
+      background: var(--bg-alt);
+      color: var(--ink);
+      max-width: 72ch;
+    }
+    .guide-prose blockquote p { margin-bottom: 8px; }
+    .guide-prose blockquote p:last-child { margin-bottom: 0; }
+    /* the bold lead-in keeps its emphasis; body stays upright like the main prose */
+    .guide-prose blockquote strong { color: var(--ink); }
+
+    .guide-prose hr {
+      border: none;
+      border-top: 1px solid var(--rule-soft);
+      margin: 48px 0;
+    }
+
+    .guide-prose code {
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+      background: var(--bg-alt);
+      padding: 1px 5px;
+      border-radius: var(--radius);
+      color: var(--ink);
+      border: 1px solid var(--rule-soft);
+    }
+
+    .guide-prose pre {
+      margin: 22px 0;
+      padding: 16px 18px;
+      background: var(--bg-alt);
+      border: 1px solid var(--rule-soft);
+      border-left: 2px solid var(--rule);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+    .guide-prose pre code {
+      background: transparent;
+      padding: 0;
+      border: none;
+      font-size: inherit;
+      color: inherit;
+    }
+    .guide-prose pre::-webkit-scrollbar { height: 6px; }
+    .guide-prose pre::-webkit-scrollbar-track { background: transparent; }
+    .guide-prose pre::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+
+    .guide-prose figure.figure {
+      margin: 28px 0 32px;
+      max-width: 100%;
+    }
+    .guide-prose figure.figure img {
+      display: block;
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      height: auto;
+      border-radius: var(--radius);
+      background: var(--bg-alt);
+    }
+    .guide-prose figure.figure figcaption {
+      max-width: 56ch;
+      margin: 14px auto 0;
+      font-size: 0.86em;
+      line-height: 1.55;
+      color: var(--ink-soft);
+      font-style: italic;
+      text-align: center;
+      text-wrap: pretty;
+    }
+
+    /* live (canvas) figures — same frame as the static ones, plus controls */
+    .guide-prose figure.fig-live { margin: 30px 0 34px; }
+    .guide-prose figure.fig-live .fig-stage {
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--bg-alt);
+      border: 1px solid var(--rule-soft);
+      border-radius: var(--radius);
+    }
+    .guide-prose figure.fig-live canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      touch-action: none;
+    }
+    .guide-prose figure.fig-live .fig-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      align-items: center;
+      max-width: 720px;
+      margin: 12px auto 0;
+    }
+    .fig-btn {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      background: transparent;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      padding: 6px 11px;
+      cursor: pointer;
+      transition: color .15s, border-color .15s, background .15s;
+    }
+    .fig-btn:hover { color: var(--accent-ink); border-color: var(--accent); }
+    .fig-btn[aria-pressed="true"] {
+      color: var(--accent-ink);
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .fig-btn:disabled { opacity: .35; cursor: default; }
+    .fig-btn:disabled:hover { color: var(--ink-dim); border-color: var(--rule); }
+    .fig-seg { display: inline-flex; }
+    .fig-seg .fig-btn { border-radius: 0; margin-left: -1px; }
+    .fig-seg .fig-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0; }
+    .fig-seg .fig-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+
+    .guide-prose table {
+      border-collapse: collapse;
+      margin: 22px auto;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      max-width: 100%;
+      width: fit-content;
+      display: block;
+      overflow-x: auto;
+    }
+    .guide-prose thead { border-bottom: 1px solid var(--rule); }
+    .guide-prose th {
+      text-align: left;
+      font-weight: 500;
+      color: var(--ink-dim);
+      letter-spacing: 0.04em;
+      padding: 8px 14px 8px 0;
+    }
+    .guide-prose td {
+      padding: 6px 14px 6px 0;
+      border-bottom: 1px solid var(--rule-soft);
+      color: var(--ink-soft);
+      vertical-align: top;
+    }
+    .guide-prose tr:last-child td { border-bottom: none; }
+
+    .guide-prose .katex-display {
+      margin: 22px 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 4px 0;
+    }
+    .guide-prose .katex { font-size: 1.05em; }
+
+    [data-theme="light"] .hljs { background: var(--bg-alt); color: var(--ink); }
+    [data-theme="dark"]  .hljs { background: var(--bg-alt); color: var(--ink); }
+
+    .guide-loading {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--ink-dim);
+      letter-spacing: 0.06em;
+      padding: 60px 0;
+      text-align: center;
+    }
+    .guide-loading .dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-left: 6px;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    .fab {
+      position: fixed;
+      background: var(--bg);
+      border: 1px solid var(--rule);
+      color: var(--ink-soft);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: opacity .2s, color .15s, border-color .15s, background .15s;
+      z-index: 60;
+    }
+    .fab:hover { color: var(--accent-ink); border-color: var(--accent); }
+    .theme-fab {
+      top: 22px; right: 22px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .theme-fab.visible { opacity: 1; pointer-events: auto; }
+    .toc-toggle {
+      top: 22px;
+      left: 22px;
+      display: none;
+    }
+    @media (min-width: 1140px) {
+      .guide-shell.toc-collapsed ~ .toc-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+    }
+    .to-top {
+      right: 22px; bottom: 22px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .to-top.visible { opacity: 1; pointer-events: auto; }
+
+    @media (max-width: 640px) {
+      .guide-hero h1 { font-size: 28px; }
+      .guide-prose { font-size: 16px; }
+      .guide-prose h1 { font-size: 24px; margin-top: 56px; }
+      .guide-prose h2 { font-size: 19px; margin-top: 36px; }
+      .guide-prose pre { font-size: 11.5px; padding: 14px; }
+      .theme-fab { top: 14px; right: 14px; }
+      .to-top { right: 14px; bottom: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+
+  <div class="guide-shell">
+    <aside class="toc-sticky" id="tocSticky" aria-label="contents">
+      <div class="toc-head">
+        <span class="toc-label">contents</span>
+        <button class="toc-collapse-btn" onclick="toggleTOC()" aria-label="hide contents" title="hide contents">‹</button>
+      </div>
+      <ol id="tocList"></ol>
+    </aside>
+
+    <main class="guide-main">
+    <header class="site-header">
+      <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait" />
+      <div class="name-block">
+        <div class="name"><a href="/">abdur rahim</a><span class="cursor"></span></div>
+        <div class="tag">senior ai engineer · bangladesh → remote</div>
+      </div>
+      <div class="hdr-actions">
+        <button class="icon-btn" onclick="toggleTheme()">dark</button>
+      </div>
+    </header>
+
+    <nav class="main-nav">
+      <a href="/"><span class="num">01</span>home</a>
+      <a href="/about.html"><span class="num">02</span>about</a>
+      <a href="/projects.html"><span class="num">03</span>projects</a>
+      <a href="/blog.html" class="active"><span class="num">04</span>writing</a>
+      <a href="/resume.html"><span class="num">05</span>resume</a>
+    </nav>
+
+    <div class="section-head">
+      <h2>Writing</h2>
+      <span class="meta">essay · understand it, then run it</span>
+    </div>
+
+    <div class="guide-hero">
+      <h1>JEPA, from first principles to your Mac, with <em>mlx-tune</em></h1>
+      <p class="lede">
+        Yann LeCun's bet on how machines should learn from observation —
+        built up from first principles, then put to work on your own Mac
+        with <a href="https://github.com/ARahim3/mlx-tune">mlx-tune</a>.
+        What JEPA is, why it works, and how to actually run it.
+      </p>
+    </div>
+
+    <dl class="about-meta">
+      <dt>updated</dt>
+      <dd>june 2026</dd>
+      <dt>length</dt>
+      <dd>2 parts <em>· 15 chapters · understand + hands-on</em></dd>
+      <dt>covers</dt>
+      <dd>latent prediction · collapse · I-JEPA / V-JEPA 2 · LeJEPA &amp; SIGReg · mlx-tune on Apple Silicon</dd>
+      <dt>for</dt>
+      <dd>ML-literate readers <em>— new to JEPA, wanting both the intuition and the code</em></dd>
+    </dl>
+
+    <div class="attribution">
+      <span class="label">sources &amp; attribution</span>
+      Part I synthesizes Yann LeCun's research program — the position paper
+      <a href="https://openreview.net/forum?id=BZ5a1r-kVsf">A Path Towards Autonomous Machine Intelligence</a> (2022),
+      <a href="https://arxiv.org/abs/2301.08243">I-JEPA</a> (Assran et al., 2023),
+      <a href="https://arxiv.org/abs/2506.09985">V-JEPA 2</a> (Meta, 2025), and
+      <a href="https://arxiv.org/abs/2511.08544">LeJEPA</a> (Balestriero &amp; LeCun, 2025) — cited inline.
+      Part II uses <a href="https://github.com/ARahim3/mlx-tune">mlx-tune</a>, my open-source library for
+      training and fine-tuning these models on Apple Silicon. My contribution is the synthesis,
+      the ordering, and the implementation; any errors are mine.
+    </div>
+
+    <details class="toc-mobile" id="tocMobile">
+      <summary>contents</summary>
+      <ol id="tocListMobile"></ol>
+    </details>
+
+    <article id="content" class="guide-prose">
+      <div class="guide-loading">loading the guide<span class="dot"></span></div>
+    </article>
+
+    <footer class="site-footer">
+      <span>© 2026 Abdur Rahim</span>
+      <span><a href="/blog.html">← writing</a> · <a href="/">home</a></span>
+    </footer>
+    </main>
+  </div>
+
+  <button class="fab toc-toggle" id="tocToggle" onclick="toggleTOC()" aria-label="show contents" title="show contents">contents ›</button>
+  <button class="fab theme-fab icon-btn" id="themeFab" onclick="toggleTheme()" aria-label="toggle theme">dark</button>
+  <button class="fab to-top" id="toTop" aria-label="back to top">↑ top</button>
+
+  <!-- libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+
+  <script>
+    /* the markdown file this shell renders */
+    var GUIDE_MD = 'jepa.md';
+
+    function applyHljsTheme() {
+      var t = document.documentElement.getAttribute('data-theme') || 'light';
+      var light = document.getElementById('hljs-light');
+      var dark  = document.getElementById('hljs-dark');
+      if (light) light.disabled = (t === 'dark');
+      if (dark)  dark.disabled  = (t !== 'dark');
+    }
+    function toggleTheme() {
+      var h = document.documentElement;
+      var cur = h.getAttribute('data-theme');
+      var next = cur === 'dark' ? 'light' : 'dark';
+      h.setAttribute('data-theme', next);
+      try { localStorage.setItem('theme', next); } catch(e){}
+      document.querySelectorAll('.icon-btn').forEach(function(b){
+        if (b.textContent === 'dark' || b.textContent === 'light')
+          b.textContent = next === 'dark' ? 'light' : 'dark';
+      });
+      applyHljsTheme();
+    }
+    (function initThemeBtn(){
+      var cur = document.documentElement.getAttribute('data-theme') || 'light';
+      document.querySelectorAll('.icon-btn').forEach(function(b){
+        if (b.textContent === 'dark' || b.textContent === 'light')
+          b.textContent = cur === 'dark' ? 'light' : 'dark';
+      });
+      applyHljsTheme();
+    })();
+
+    /* ── FigKit ───────────────────────────────────────────────────────────
+       Shared plumbing for the canvas figures that live inside the markdown:
+       device-pixel scaling, resize, theme-aware colours, and a rAF loop that
+       idles while the figure is off-screen or the reader has asked for less
+       motion. A figure supplies only its draw(ctx, s) function.            */
+    window.FigKit = (function () {
+      var MONO = 'JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace';
+      var reduced = false;
+      try { reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+      /* Resolve the site's custom properties to concrete colours the canvas
+         can use — reading the var() through a probe element means we follow
+         the light/dark palette instead of hard-coding either one. */
+      function palette(host) {
+        var probe = document.createElement('span');
+        probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none';
+        host.appendChild(probe);
+        function c(name) {
+          probe.style.color = 'var(' + name + ')';
+          return getComputedStyle(probe).color;
+        }
+        var p = {
+          bg: c('--bg'), bgAlt: c('--bg-alt'),
+          ink: c('--ink'), inkSoft: c('--ink-soft'), inkDim: c('--ink-dim'),
+          rule: c('--rule'), ruleSoft: c('--rule-soft'),
+          accent: c('--accent'), accentInk: c('--accent-ink'),
+          dark: document.documentElement.getAttribute('data-theme') === 'dark'
+        };
+        probe.remove();
+        /* semantic hues for the figures, tuned per theme so they read on both */
+        p.warm  = p.dark ? '#d98a63' : '#c0704a';
+        p.amber = p.dark ? '#d9ab52' : '#b5892f';
+        p.blue  = p.dark ? '#7ea3d6' : '#5b7fb0';
+        p.good  = p.accent;
+        p.bad   = p.dark ? '#e08163' : '#c8643f';
+        return p;
+      }
+
+      function mount(fig, opts) {
+        var cv = fig.querySelector('canvas');
+        if (!cv) return null;
+        var ctx = cv.getContext('2d');
+        var s = {
+          W: 0, H: 0, t: 0, mono: MONO, reduced: reduced,
+          pal: palette(fig), paused: false, fig: fig, canvas: cv
+        };
+
+        function resize() {
+          var w = cv.parentElement.clientWidth;
+          if (!w) return;
+          var h = Math.max(opts.minH || 260,
+                  Math.min(opts.maxH || 420, Math.round(w * (opts.ratio || 0.5))));
+          var dpr = Math.min(window.devicePixelRatio || 1, 2);
+          cv.width = w * dpr; cv.height = h * dpr;
+          cv.style.height = h + 'px';
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          s.W = w; s.H = h;
+        }
+
+        var onScreen = true, raf = null, last = 0;
+        function frame(now) {
+          raf = null;
+          var dt = last ? Math.min((now - last) / 1000, 0.05) : 0;
+          last = now;
+          if (!s.paused && !s.reduced) s.t += dt;
+          ctx.clearRect(0, 0, s.W, s.H);
+          opts.draw(ctx, s);
+          schedule();
+        }
+        function schedule() {
+          if (raf || !onScreen) return;
+          raf = requestAnimationFrame(frame);
+        }
+        /* a one-off repaint for when the figure is static but state changed */
+        s.repaint = function () { last = 0; schedule(); };
+
+        resize();
+        try {
+          new ResizeObserver(function () { resize(); s.repaint(); }).observe(cv.parentElement);
+        } catch (e) {
+          window.addEventListener('resize', function () { resize(); s.repaint(); });
+        }
+        try {
+          new IntersectionObserver(function (es) {
+            onScreen = es[0].isIntersecting;
+            last = 0;
+            if (onScreen) schedule();
+          }, { rootMargin: '120px' }).observe(fig);
+        } catch (e) { onScreen = true; }
+        /* follow the theme toggle */
+        new MutationObserver(function () {
+          s.pal = palette(fig);
+          s.repaint();
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+        schedule();
+        return s;
+      }
+
+      /* shared drawing helpers */
+      function arrowHead(ctx, x, y, ang, col, size) {
+        var L = size || 9;
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - L * Math.cos(ang - 0.4), y - L * Math.sin(ang - 0.4));
+        ctx.lineTo(x - L * Math.cos(ang + 0.4), y - L * Math.sin(ang + 0.4));
+        ctx.closePath();
+        ctx.fill();
+      }
+      function dashedCircle(ctx, cx, cy, r, col) {
+        ctx.setLineDash([3, 5]);
+        ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      function gauss() {
+        var u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+      }
+      function alpha(ctx, a, fn) {
+        var prev = ctx.globalAlpha;
+        ctx.globalAlpha = a; fn(); ctx.globalAlpha = prev;
+      }
+
+      return { mount: mount, arrowHead: arrowHead, dashedCircle: dashedCircle,
+               gauss: gauss, alpha: alpha, MONO: MONO };
+    })();
+
+    function slugify(s) {
+      return s.toLowerCase()
+        .replace(/[^\w\s.-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    }
+
+    async function loadGuide() {
+      var article = document.getElementById('content');
+      var mdText;
+      try {
+        var res = await fetch(GUIDE_MD, { cache: 'no-cache' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        mdText = await res.text();
+      } catch (e) {
+        article.innerHTML = '<p style="color: var(--ink-soft); font-family: var(--font-mono); font-size: 13px;">'
+          + 'could not load <code>' + GUIDE_MD + '</code> (' + e.message + '). '
+          + 'serve this page over http (e.g. <code>python3 -m http.server</code>) with the markdown file next to it.'
+          + '</p>';
+        return;
+      }
+
+      /* Protect fenced code + inline code, extract math, render with KaTeX,
+         splice back in. (marked would otherwise mangle LaTeX backslashes.) */
+      var mathBlocks = [];
+      function stash(content, display) {
+        var i = mathBlocks.length;
+        mathBlocks.push({ content: content, display: display });
+        return ' MATH' + i + ' ';
+      }
+
+      var codeBlocks = [];
+      mdText = mdText.replace(/```[\s\S]*?```/g, function(m) {
+        codeBlocks.push(m);
+        return 'CODE' + (codeBlocks.length - 1) + '';
+      });
+      mdText = mdText.replace(/`[^`\n]+`/g, function(m) {
+        codeBlocks.push(m);
+        return 'CODE' + (codeBlocks.length - 1) + '';
+      });
+
+      mdText = mdText.replace(/\$\$([\s\S]+?)\$\$/g, function(_, inner) {
+        return stash(inner, true);
+      });
+      mdText = mdText.replace(/(^|[^\\$])\$([^\$\n]+?)\$(?!\d)/g, function(_, pre, inner) {
+        return pre + stash(inner, false);
+      });
+
+      mdText = mdText.replace(/CODE(\d+)/g, function(_, i) {
+        return codeBlocks[+i];
+      });
+
+      marked.setOptions({ gfm: true, breaks: false });
+
+      var html;
+      try {
+        html = marked.parse(mdText);
+      } catch (e) {
+        console.error('marked parse error', e);
+        article.innerHTML = '<p style="color: var(--ink-soft); font-family: var(--font-mono); font-size: 13px;">'
+          + 'render error: ' + (e && e.message ? e.message : String(e)) + '</p>';
+        return;
+      }
+
+      html = html.replace(/ MATH(\d+) /g, function(_, i) {
+        var block = mathBlocks[+i];
+        try {
+          return katex.renderToString(block.content, {
+            displayMode: block.display,
+            throwOnError: false,
+            strict: false,
+            output: 'html'
+          });
+        } catch (e) {
+          return '<span class="katex-error">'
+            + (block.display ? '$$' : '$') + block.content + (block.display ? '$$' : '$')
+            + '</span>';
+        }
+      });
+
+      article.innerHTML = html;
+
+      /* innerHTML never executes <script>, so any figure that ships its own
+         code inside the markdown has to be re-created as a live node. */
+      article.querySelectorAll('script').forEach(function(old){
+        var s = document.createElement('script');
+        for (var i = 0; i < old.attributes.length; i++) {
+          s.setAttribute(old.attributes[i].name, old.attributes[i].value);
+        }
+        s.textContent = old.textContent;
+        old.parentNode.replaceChild(s, old);
+      });
+
+      article.querySelectorAll('pre code').forEach(function(block){
+        try { hljs.highlightElement(block); } catch(e) { /* ignore */ }
+      });
+
+      var seen = {};
+      article.querySelectorAll('h1, h2, h3').forEach(function(h){
+        var raw = h.textContent.trim();
+        var slug = slugify(raw);
+        if (!slug) return;
+        if (seen[slug]) { slug = slug + '-' + (++seen[slug]); }
+        else { seen[slug] = 1; }
+        h.id = slug;
+        var a = document.createElement('a');
+        a.className = 'anchor-link';
+        a.href = '#' + slug;
+        a.setAttribute('aria-label', 'permalink');
+        a.textContent = '#';
+        h.appendChild(a);
+      });
+
+      buildTOC(article);
+
+      if (location.hash) {
+        var t = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+        if (t) t.scrollIntoView({ behavior: 'instant', block: 'start' });
+      }
+
+      setupScrollSpy(article);
+    }
+
+    function buildTOC(article) {
+      var headings = article.querySelectorAll('h1, h2');
+      var listD = document.getElementById('tocList');
+      var listM = document.getElementById('tocListMobile');
+      headings.forEach(function(h){
+        if (!h.id) return;
+        var label = h.textContent.replace(/#$/, '').trim();
+        var liD = document.createElement('li');
+        var liM = document.createElement('li');
+        liD.className = liM.className = 'toc-' + h.tagName.toLowerCase();
+        liD.dataset.target = liM.dataset.target = h.id;
+        var aD = document.createElement('a');
+        var aM = document.createElement('a');
+        aD.href = aM.href = '#' + h.id;
+        aD.textContent = aM.textContent = label;
+        liD.appendChild(aD);
+        liM.appendChild(aM);
+        listD.appendChild(liD);
+        listM.appendChild(liM);
+      });
+      listM.addEventListener('click', function(){
+        document.getElementById('tocMobile').open = false;
+      });
+    }
+
+    function ensureActiveTOCVisible() {
+      var sidebar = document.querySelector('aside.toc-sticky');
+      if (!sidebar) return;
+      if (document.querySelector('.guide-shell').classList.contains('toc-collapsed')) return;
+      var active = sidebar.querySelector('li.active');
+      if (!active) return;
+      var sRect = sidebar.getBoundingClientRect();
+      var aRect = active.getBoundingClientRect();
+      var pad = 60;
+      if (aRect.top < sRect.top + pad) {
+        sidebar.scrollTo({ top: sidebar.scrollTop - (sRect.top + pad - aRect.top), behavior: 'smooth' });
+      } else if (aRect.bottom > sRect.bottom - pad) {
+        sidebar.scrollTo({ top: sidebar.scrollTop + (aRect.bottom - sRect.bottom + pad), behavior: 'smooth' });
+      }
+    }
+
+    function setupScrollSpy(article) {
+      var headings = Array.from(article.querySelectorAll('h2'));
+      if (!headings.length) return;
+      var entries = headings.map(function(h){ return { id: h.id, top: 0 }; });
+      var lastActive = null;
+      function recompute() {
+        entries.forEach(function(e){
+          var el = document.getElementById(e.id);
+          e.top = el ? el.getBoundingClientRect().top + window.scrollY : 0;
+        });
+      }
+      function onScroll() {
+        var y = window.scrollY + 100;
+        var active = entries[0] ? entries[0].id : null;
+        for (var i = 0; i < entries.length; i++) {
+          if (entries[i].top <= y) active = entries[i].id;
+          else break;
+        }
+        if (active !== lastActive) {
+          lastActive = active;
+          document.querySelectorAll('aside.toc-sticky li, details.toc-mobile li').forEach(function(li){
+            li.classList.toggle('active', li.dataset.target === active);
+          });
+          ensureActiveTOCVisible();
+        }
+        var doc = document.documentElement;
+        var max = doc.scrollHeight - window.innerHeight;
+        var pct = max > 0 ? Math.min(100, (window.scrollY / max) * 100) : 0;
+        document.getElementById('progress').style.width = pct + '%';
+        var scrolled = window.scrollY > 280;
+        document.getElementById('themeFab').classList.toggle('visible', scrolled);
+        document.getElementById('toTop').classList.toggle('visible', window.scrollY > 600);
+      }
+      window.addEventListener('resize', recompute, { passive: true });
+      window.addEventListener('scroll', onScroll, { passive: true });
+      recompute();
+      onScroll();
+    }
+
+    function toggleTOC() {
+      var shell = document.querySelector('.guide-shell');
+      shell.classList.toggle('toc-collapsed');
+      var collapsed = shell.classList.contains('toc-collapsed');
+      try { localStorage.setItem('jepaTocCollapsed', collapsed ? '1' : '0'); } catch(e) {}
+    }
+    (function initTOCState(){
+      var collapsed = false;
+      try { collapsed = localStorage.getItem('jepaTocCollapsed') === '1'; } catch(e){}
+      if (!collapsed) return;
+      var shell = document.querySelector('.guide-shell');
+      shell.style.transition = 'none';
+      shell.classList.add('toc-collapsed');
+      requestAnimationFrame(function(){ shell.style.transition = ''; });
+    })();
+
+    document.getElementById('toTop').addEventListener('click', function(){
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    loadGuide();
+  </script>
+</body>
+</html>

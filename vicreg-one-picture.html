@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VICReg — one picture</title>
+<style>
+  :root{
+    --bg:#f7f6f1; --ink:#3a3a34; --muted:#8c8c82; --faint:#b9b8ad;
+    --dash:#cfcec4; --line:#e3e2da;
+    --inv:#c06a42; --var:#b8862b; --cov:#4f6fa8;
+    --green:#4f9e6a; --green-d:#3f8f5f; --bad:#c8643f;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --serif:Georgia,"Times New Roman",serif;
+    --sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:940px;margin:0 auto;padding:18px 20px 26px;}
+  canvas{display:block;width:100%;height:auto;touch-action:none;}
+  .caption{max-width:780px;margin:8px auto 0;text-align:center;
+    font-family:var(--serif);font-style:italic;font-size:16.5px;line-height:1.62;color:#5b5b53;}
+  .caption b{font-style:normal;font-weight:600;color:#46463f}
+  .caption .iso{font-style:normal;color:var(--green-d);font-weight:600}
+  .bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:18px;}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:10px;
+    font:600 12.5px var(--sans);padding:8px 14px;cursor:pointer;transition:border-color .15s,color .15s;}
+  .btn:hover{border-color:var(--faint);color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <canvas id="cv"></canvas>
+  <p class="caption">
+    <b>VICReg in one picture.</b> Three forces, three collapses denied. <b>Invariance</b> snaps a sample's
+    two views together — but on its own it crushes every embedding to one point. <b>Variance</b> floors the
+    spread of each coordinate, ruling the point out; yet a single tilted line still satisfies it, hiding all
+    information in one dimension. <b>Covariance</b> zeros the cross-correlations, untangling that line into a
+    round cloud — the <span class="iso">isotropic Gaussian</span> SIGReg later certifies.
+  </p>
+  <div class="bar">
+    <button class="btn" id="reseed">↻ reseed</button>
+    <button class="btn" id="pause">pause</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+  const TAU=Math.PI*2;
+  function gauss(){let u=0,v=0;while(u===0)u=Math.random();while(v===0)v=Math.random();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(TAU*v);}
+  function rnd(a,b){return a+Math.random()*(b-a);}
+
+  // ---- point sets (world coords; ambient phase/freq per dot) ----
+  let P1=[],P2=[],P3=[],links=[];
+  function build(){
+    P1=[];P2=[];P3=[];links=[];
+    // 1: collapse to a point — tight clump
+    for(let i=0;i<26;i++) P1.push({x:gauss()*0.13,y:gauss()*0.13,ph:rnd(0,TAU),fr:rnd(.5,1.1)});
+    // a few rubber bands among nearby dots (pulling inward)
+    for(let k=0;k<7;k++){const a=(Math.random()*26)|0,b=(Math.random()*26)|0;if(a!==b)links.push([a,b]);}
+    // 2: dimensional collapse — a tilted line
+    const A=-0.5,ca=Math.cos(A),sa=Math.sin(A);
+    for(let i=0;i<26;i++){const t=rnd(-1.9,1.9),n=gauss()*0.05;
+      P2.push({x:t*ca-n*sa,y:t*sa+n*ca,ph:rnd(0,TAU),fr:rnd(.5,1.1),t:t});}
+    // 3: healthy isotropic ball
+    for(let i=0;i<30;i++) P3.push({x:gauss()*0.85,y:gauss()*0.85,ph:rnd(0,TAU),fr:rnd(.4,.9)});
+  }
+  build();
+
+  // ---- canvas ----
+  let W=0,H=0,dpr=1;
+  function resize(){
+    const cssW=cv.parentElement.clientWidth;
+    const cssH=Math.max(300,Math.min(420,Math.round(cssW*0.52)));
+    dpr=Math.min(window.devicePixelRatio||1,2);
+    cv.width=cssW*dpr;cv.height=cssH*dpr;cv.style.height=cssH+"px";
+    W=cssW;H=cssH;ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener("resize",resize);resize();
+
+  let paused=false;
+  const MONO='ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
+
+  function dashedCircle(cx,cy,r){
+    ctx.setLineDash([3,5]);ctx.strokeStyle="#cfcec4";ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.arc(cx,cy,r,0,TAU);ctx.stroke();ctx.setLineDash([]);
+  }
+  function rr(x,y,w,h,r){ctx.beginPath();
+    ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+  function chip(x,y,letter,color,active){
+    const w=20,h=20;
+    rr(x,y,w,h,5);
+    ctx.fillStyle=active?color:"#ece9e0";ctx.fill();
+    ctx.fillStyle=active?"#fff":"#c3c1b6";
+    ctx.font="italic 600 12px "+MONO;ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillText(letter,x+w/2,y+h/2+0.5);
+    ctx.textBaseline="alphabetic";
+  }
+  function arrow(x0,x1,y,label,color){
+    ctx.strokeStyle="#bdbcb2";ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1-7,y);ctx.stroke();
+    ctx.fillStyle="#bdbcb2";ctx.beginPath();
+    ctx.moveTo(x1,y);ctx.lineTo(x1-8,y-4);ctx.lineTo(x1-8,y+4);ctx.closePath();ctx.fill();
+    ctx.fillStyle=color;ctx.font="600 11.5px "+MONO;ctx.textAlign="center";
+    ctx.fillText(label,(x0+x1)/2,y-9);
+  }
+  function mark(cx,cy,r,ok){
+    const x=cx+r*0.66,y=cy-r*0.66;
+    ctx.lineWidth=2;ctx.lineCap="round";
+    if(ok){ctx.strokeStyle="#4f9e6a";ctx.beginPath();
+      ctx.moveTo(x-4,y);ctx.lineTo(x-1,y+4);ctx.lineTo(x+5,y-4);ctx.stroke();}
+    else{ctx.strokeStyle="#c8643f";ctx.beginPath();
+      ctx.moveTo(x-4,y-4);ctx.lineTo(x+4,y+4);ctx.moveTo(x+4,y-4);ctx.lineTo(x-4,y+4);ctx.stroke();}
+    ctx.lineCap="butt";
+  }
+
+  let t0=performance.now();
+  function draw(now){
+    const tt=paused?lastT:(now-t0)/1000; if(!paused)lastT=tt;
+    ctx.clearRect(0,0,W,H);
+
+    const R=Math.min(W,H)*0.255, cy=H*0.46, sc=R/2.7;
+    const cxs=[W*0.175,W*0.5,W*0.825];
+
+    // arrows between panels
+    arrow(cxs[0]+R+6,cxs[1]-R-6,cy,"+ variance","#b8862b");
+    arrow(cxs[1]+R+6,cxs[2]-R-6,cy,"+ covariance","#4f6fa8");
+
+    // ---- panel 1: collapse ----
+    let cx=cxs[0];
+    dashedCircle(cx,cy,R);
+    const breathe=0.9+0.12*Math.sin(tt*1.1);
+    // rubber bands
+    for(const [a,b] of links){
+      const pa=P1[a],pb=P1[b];
+      ctx.strokeStyle="rgba(192,106,66,.28)";ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(cx+pa.x*sc*breathe,cy-pa.y*sc*breathe);
+      ctx.lineTo(cx+pb.x*sc*breathe,cy-pb.y*sc*breathe);ctx.stroke();
+    }
+    for(const p of P1){
+      const px=cx+p.x*sc*breathe, py=cy-p.y*sc*breathe;
+      dot(px,py,"#9a9a90");
+    }
+    chips(cx,cy-R-30,[1,0,0]);
+    mark(cx,cy,R,false);
+    label(cx,cy+R+24,"collapses to a point");
+
+    // ---- panel 2: line ----
+    cx=cxs[1];
+    dashedCircle(cx,cy,R);
+    const A=-0.5,ca=Math.cos(A),sa=Math.sin(A);
+    ctx.strokeStyle="rgba(184,134,43,.30)";ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(cx-2.4*ca*sc,cy+2.4*sa*sc);ctx.lineTo(cx+2.4*ca*sc,cy-2.4*sa*sc);ctx.stroke();
+    for(const p of P2){
+      const slide=0.12*Math.sin(tt*0.6+p.ph);
+      const wx=(p.t+slide)*ca, wy=(p.t+slide)*sa; // glide along the line
+      const px=cx+wx*sc + 1.5*Math.sin(tt*p.fr+p.ph);
+      const py=cy-wy*sc + 1.0*Math.cos(tt*p.fr+p.ph);
+      dot(px,py,"#9a9a90");
+    }
+    chips(cx,cy-R-30,[1,1,0]);
+    mark(cx,cy,R,false);
+    label(cx,cy+R+24,"spreads — onto one line");
+
+    // ---- panel 3: isotropic ball ----
+    cx=cxs[2];
+    dashedCircle(cx,cy,R);
+    const rot=tt*0.06, cr=Math.cos(rot),sr=Math.sin(rot);
+    // covariance ellipse = breathing circle (the readout)
+    const er=1.85*sc*(1+0.025*Math.sin(tt*0.9));
+    ctx.beginPath();ctx.arc(cx,cy,er,0,TAU);
+    ctx.fillStyle="rgba(79,158,106,.10)";ctx.fill();
+    ctx.strokeStyle="rgba(79,158,106,.55)";ctx.lineWidth=1.6;ctx.stroke();
+    for(const p of P3){
+      const rx=p.x*cr-p.y*sr, ry=p.x*sr+p.y*cr;
+      const px=cx+rx*sc + 1.2*Math.sin(tt*p.fr+p.ph);
+      const py=cy-ry*sc + 1.2*Math.cos(tt*p.fr+p.ph);
+      dot(px,py,"#4f9e6a");
+    }
+    chips(cx,cy-R-30,[1,1,1]);
+    mark(cx,cy,R,true);
+    label(cx,cy+R+24,"isotropic — every axis alive");
+
+    requestAnimationFrame(draw);
+  }
+  let lastT=0;
+
+  function dot(x,y,col){ctx.beginPath();ctx.arc(x,y,4,0,TAU);ctx.fillStyle=col;ctx.fill();}
+  function chips(cx,y,on){
+    const cols=["#c06a42","#b8862b","#4f6fa8"], lets=["s","v","c"];
+    const w=20,gap=6, total=3*w+2*gap, x0=cx-total/2;
+    for(let i=0;i<3;i++) chip(x0+i*(w+gap),y,lets[i],cols[i],!!on[i]);
+  }
+  function label(cx,y,txt){
+    ctx.fillStyle="#8c8c82";ctx.font="12.5px "+MONO;ctx.textAlign="center";ctx.fillText(txt,cx,y);
+  }
+
+  // ---- controls ----
+  document.getElementById("reseed").addEventListener("click",()=>build());
+  document.getElementById("pause").addEventListener("click",function(){
+    paused=!paused;this.textContent=paused?"play":"pause";
+    if(!paused){t0=performance.now()-lastT*1000;}
+  });
+
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
