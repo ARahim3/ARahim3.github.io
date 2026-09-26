@@ -438,6 +438,7 @@ section { margin-bottom: 56px; }
   border-top: 1px solid var(--rule-soft);
   border-bottom: 1px solid var(--rule-soft);
 }
+.project.hero-project + .project.hero-project { border-top: none; }
 .project.hero-project .thumb {
   width: 360px;
   height: 216px;

@@ -3,22 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Open source projects by Abdur Rahim — MLX fine-tuning, Bangla keyboard, ASR & TTS servers" />
+  <meta name="description" content="Open source projects by Abdur Rahim — MLX fine-tuning, LLM serving on free Kaggle TPUs, Bangla keyboard, ASR & TTS servers" />
 
   <!-- Open Graph / Social Media Preview -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://arahim3.github.io/projects.html" />
   <meta property="og:title" content="Projects — Abdur Rahim" />
-  <meta property="og:description" content="Open source projects by Abdur Rahim — MLX fine-tuning, Bangla keyboard, ASR & TTS servers" />
-  <meta property="og:image" content="https://arahim3.github.io/social-card.png" />
+  <meta property="og:description" content="Open source projects by Abdur Rahim — MLX fine-tuning, LLM serving on free Kaggle TPUs, Bangla keyboard, ASR & TTS servers" />
+  <meta property="og:image" content="https://arahim3.github.io/projects-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Open-source projects by Abdur Rahim: mlx-tune, mlx-dspark, kaggle-tpu-lab, Lekho, omniASR-server, supertonic-server." />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta property="twitter:domain" content="arahim3.github.io" />
   <meta property="twitter:url" content="https://arahim3.github.io/projects.html" />
   <meta name="twitter:title" content="Projects — Abdur Rahim" />
-  <meta name="twitter:description" content="Open source projects by Abdur Rahim — MLX fine-tuning, Bangla keyboard, ASR & TTS servers" />
-  <meta name="twitter:image" content="https://arahim3.github.io/social-card.png" />
+  <meta name="twitter:description" content="Open source projects by Abdur Rahim — MLX fine-tuning, LLM serving on free Kaggle TPUs, Bangla keyboard, ASR & TTS servers" />
+  <meta name="twitter:image" content="https://arahim3.github.io/projects-card.png" />
 
   <title>Projects — Abdur Rahim</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -104,6 +107,28 @@
     </div>
 
     <div class="project">
+      <a href="https://github.com/ARahim3/kaggle-tpu-lab" target="_blank" class="thumb"><img src="/kaggle-tpu-lab-card.png" alt="kaggle-tpu-lab" loading="lazy" /></a>
+      <div class="body">
+        <div class="head">
+          <a href="https://github.com/ARahim3/kaggle-tpu-lab" target="_blank" class="title">kaggle-tpu-lab</a>
+          <a href="https://github.com/ARahim3/kaggle-tpu-lab" target="_blank" class="stars-badge"><img src="https://img.shields.io/github/stars/ARahim3/kaggle-tpu-lab?style=social" alt="stars" /></a>
+        </div>
+        <p class="desc">Run open models on Kaggle's free TPU v5e-8 behind a public endpoint that speaks the OpenAI and Anthropic APIs, ready for Claude Code, Codex CLI or opencode. Qwen3.8-27B in full bf16 at ~130 tok/s, and GLM-5.3-Flash (320B MoE) at ~64 tok/s on a JAX engine I wrote for it.</p>
+        <div class="tags">
+          <span>tpu</span><span>jax</span><span>pallas</span>
+          <span>llm-serving</span><span>kaggle</span>
+        </div>
+        <div class="links">
+          <a href="https://github.com/ARahim3/kaggle-tpu-lab" target="_blank">github ↗</a>
+          <span class="sep">·</span>
+          <a href="https://www.kaggle.com/code/rahim3/qwen3-8-27b-bf16-on-kaggle-tpu-130-tok-s-api" target="_blank">qwen notebook ↗</a>
+          <span class="sep">·</span>
+          <a href="https://www.kaggle.com/code/rahim3/glm-5-3-flash-on-a-free-kaggle-tpu-64-tok-s-api" target="_blank">glm notebook ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="project">
       <a href="https://github.com/ARahim3/omniASR-server" target="_blank" class="thumb"><img src="/omniasr-card.png" alt="omniASR-server" loading="lazy" /></a>
       <div class="body">
         <div class="head">
@@ -183,5 +208,6 @@
     });
   })();
 </script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "d470de9772b049559c019c593d9d69c6"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>

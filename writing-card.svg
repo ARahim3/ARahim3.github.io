@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&amp;display=swap');
+      text { font-family: 'Newsreader', 'Source Serif 4', Georgia, serif; }
+      .mono { font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="630" fill="#faf8f3"/>
+  <rect x="32" y="32" width="1136" height="566" fill="none" stroke="#e6e2dc" stroke-width="1"/>
+
+  <!-- eyebrow -->
+  <rect x="130" y="98" width="36" height="2.5" fill="#2e9d6c"/>
+  <text class="mono" x="178" y="107" font-size="15" font-weight="500" letter-spacing="2.5" fill="#8a8682">ABDUR RAHIM · ESSAYS &amp; DEEP DIVES</text>
+
+  <!-- title -->
+  <text class="mono" x="124" y="228" font-size="88" font-weight="600" letter-spacing="-3" fill="#2a2725">writing</text>
+  <rect x="490" y="164" width="30" height="66" fill="#2e9d6c"/>
+
+  <!-- entries -->
+  <g>
+    <text class="mono" x="130" y="322" font-size="17" fill="#8a8682">2026</text>
+    <text x="210" y="322" font-size="28" font-style="italic" fill="#2a2725">From Understanding JEPA to Using It with mlx-tune</text>
+    <text class="mono" x="130" y="376" font-size="17" fill="#8a8682">2026</text>
+    <text x="210" y="376" font-size="28" font-style="italic" fill="#2a2725">My JAX Journey</text>
+    <text class="mono" x="130" y="430" font-size="17" fill="#8a8682">2025</text>
+    <text x="210" y="430" font-size="28" font-style="italic" fill="#2a2725">A Comprehensive Guide to ARC-AGI</text>
+  </g>
+
+  <!-- footer -->
+  <line x1="130" y1="510" x2="1070" y2="510" stroke="#e6e2dc" stroke-width="1"/>
+  <text class="mono" x="130" y="552" font-size="17" fill="#8a8682">jax · tpus · mlx · jepa · arc-agi</text>
+  <text class="mono" x="1070" y="552" font-size="17" fill="#2a2725" text-anchor="end">arahim3.github.io/blog</text>
+</svg>

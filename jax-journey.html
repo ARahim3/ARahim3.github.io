@@ -427,6 +427,10 @@
     }
 
     /* code: inline */
+    /* long identifiers and URLs would otherwise push the page sideways on phones */
+    .guide-prose :not(pre) > code,
+    .guide-prose a { overflow-wrap: anywhere; }
+
     .guide-prose code {
       font-family: var(--font-mono);
       font-size: 0.86em;
@@ -987,5 +991,6 @@
 
     loadGuide();
   </script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "d470de9772b049559c019c593d9d69c6"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>

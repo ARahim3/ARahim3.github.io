@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&amp;display=swap');
+      text { font-family: 'Newsreader', 'Source Serif 4', Georgia, serif; }
+      .mono { font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="630" fill="#faf8f3"/>
+
+  <!-- eyebrow -->
+  <rect x="130" y="98" width="36" height="2.5" fill="#2e9d6c"/>
+  <text class="mono" x="178" y="107" font-size="15" font-weight="500" letter-spacing="2.5" fill="#8a8682">FREE KAGGLE TPU · OPENAI + ANTHROPIC API</text>
+
+  <!-- title -->
+  <text class="mono" x="124" y="248" font-size="88" font-weight="600" letter-spacing="-3" fill="#2a2725">kaggle-<tspan fill="#4285F4">tpu</tspan>-lab</text>
+
+  <!-- subtitle -->
+  <text x="130" y="322" font-size="29" font-style="italic" fill="#5e5a58">Open models on Kaggle's free TPU v5e-8, served as a public</text>
+  <text x="130" y="360" font-size="29" font-style="italic" fill="#5e5a58">endpoint your coding agent can talk to.</text>
+
+  <!-- motif: eight chips → one endpoint -->
+  <g>
+    <g transform="translate(130, 430)" fill="#4285F4">
+      <rect x="0"  y="0"  width="20" height="20" rx="2"/>
+      <rect x="26" y="0"  width="20" height="20" rx="2"/>
+      <rect x="52" y="0"  width="20" height="20" rx="2"/>
+      <rect x="78" y="0"  width="20" height="20" rx="2"/>
+      <rect x="0"  y="26" width="20" height="20" rx="2"/>
+      <rect x="26" y="26" width="20" height="20" rx="2"/>
+      <rect x="52" y="26" width="20" height="20" rx="2"/>
+      <rect x="78" y="26" width="20" height="20" rx="2"/>
+    </g>
+    <text class="mono" x="258" y="462" font-size="26" fill="#c5beb3">→</text>
+    <text class="mono" x="308" y="462" font-size="20" fill="#5e5a58">/v1/messages · /v1/chat/completions</text>
+  </g>
+
+  <!-- footer -->
+  <text class="mono" x="130" y="552" font-size="17" fill="#8a8682">github.com/ARahim3/kaggle-tpu-lab</text>
+</svg>
