@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="robots" content="noindex" />
+        <title>Page not found — Abdur Rahim</title>
+
+        <script>
+            // GitHub Pages paths are case-sensitive and Lekho's site is the
+            // ARahim3/Lekho repo, served at /Lekho/. Send /lekho, /LEKHO/bn/ …
+            // there instead of showing a 404.
+            (function () {
+                var p = location.pathname;
+                if (/^\/lekho(\/|$)/i.test(p) && p.indexOf("/Lekho") !== 0) {
+                    location.replace("/Lekho" + p.slice(6) + location.search + location.hash);
+                }
+            })();
+        </script>
+
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Inter:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+
+        <script>
+            (function () {
+                var t = localStorage.getItem("theme") || "light";
+                document.documentElement.setAttribute("data-theme", t);
+            })();
+        </script>
+
+        <link rel="stylesheet" href="/style.css" />
+    </head>
+    <body>
+        <div class="page">
+            <header class="site-header">
+                <img src="/portrait.jpg" alt="Abdur Rahim" class="portrait" />
+                <div class="name-block">
+                    <div class="name">
+                        <a href="/">abdur rahim</a><span class="cursor"></span>
+                    </div>
+                </div>
+            </header>
+
+            <nav class="main-nav">
+                <a href="/"><span class="num">01</span>home</a>
+                <a href="/about.html"><span class="num">02</span>about</a>
+                <a href="/projects.html"><span class="num">03</span>projects</a>
+                <a href="/blog.html"><span class="num">04</span>writing</a>
+                <a href="/resume.html"><span class="num">05</span>resume</a>
+            </nav>
+
+            <div class="section-head">
+                <h2>Page not found</h2>
+            </div>
+            <p>
+                There's nothing at this address. Try the <a href="/">home page</a>, or
+                <a href="/Lekho/">Lekho</a> if that's what you were looking for.
+            </p>
+        </div>
+    </body>
+</html>
