@@ -23,16 +23,17 @@
 
   <!-- project list, two columns -->
   <g font-size="21">
-    <text class="mono" x="130" y="372" fill="#2e9d6c">→</text><text class="mono" x="162" y="372" fill="#2a2725">mlx-tune</text>
-    <text class="mono" x="130" y="412" fill="#2e9d6c">→</text><text class="mono" x="162" y="412" fill="#2a2725">mlx-dspark</text>
-    <text class="mono" x="130" y="452" fill="#2e9d6c">→</text><text class="mono" x="162" y="452" fill="#2a2725">kaggle-tpu-lab</text>
-    <text class="mono" x="560" y="372" fill="#2e9d6c">→</text><text class="mono" x="592" y="372" fill="#2a2725">lekho</text>
-    <text class="mono" x="560" y="412" fill="#2e9d6c">→</text><text class="mono" x="592" y="412" fill="#2a2725">omniASR-server</text>
-    <text class="mono" x="560" y="452" fill="#2e9d6c">→</text><text class="mono" x="592" y="452" fill="#2a2725">supertonic-server</text>
+    <text class="mono" x="130" y="352" fill="#2e9d6c">→</text><text class="mono" x="162" y="352" fill="#2a2725">DigUp</text>
+    <text class="mono" x="130" y="390" fill="#2e9d6c">→</text><text class="mono" x="162" y="390" fill="#2a2725">mlx-tune</text>
+    <text class="mono" x="130" y="428" fill="#2e9d6c">→</text><text class="mono" x="162" y="428" fill="#2a2725">mlx-dspark</text>
+    <text class="mono" x="130" y="466" fill="#2e9d6c">→</text><text class="mono" x="162" y="466" fill="#2a2725">kaggle-tpu-lab</text>
+    <text class="mono" x="560" y="352" fill="#2e9d6c">→</text><text class="mono" x="592" y="352" fill="#2a2725">Lekho</text>
+    <text class="mono" x="560" y="390" fill="#2e9d6c">→</text><text class="mono" x="592" y="390" fill="#2a2725">omniASR-server</text>
+    <text class="mono" x="560" y="428" fill="#2e9d6c">→</text><text class="mono" x="592" y="428" fill="#2a2725">supertonic-server</text>
   </g>
 
   <!-- footer -->
   <line x1="130" y1="510" x2="1070" y2="510" stroke="#e6e2dc" stroke-width="1"/>
-  <text class="mono" x="130" y="552" font-size="17" fill="#8a8682">mlx · jax · tpu · speech</text>
+  <text class="mono" x="130" y="552" font-size="17" fill="#8a8682">search · mlx · jax · tpu · speech</text>
   <text class="mono" x="1070" y="552" font-size="17" fill="#2a2725" text-anchor="end">arahim3.github.io/projects</text>
 </svg>

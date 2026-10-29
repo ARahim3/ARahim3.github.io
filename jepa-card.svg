@@ -48,11 +48,11 @@
       <circle cx="904" cy="458" r="6"/><circle cx="918" cy="455" r="6"/><circle cx="932" cy="462" r="6"/>
       <circle cx="908" cy="472" r="6"/><circle cx="924" cy="475" r="6"/><circle cx="938" cy="470" r="6"/>
     </g>
-    <text class="mono" x="918" y="516" font-size="17" letter-spacing="0.5" fill="#1a5d3f" text-anchor="middle">isotropic gaussian ✓</text>
+    <text class="mono" x="918" y="516" font-size="17" letter-spacing="0.5" fill="#1a5d3f" text-anchor="middle">isotropic Gaussian ✓</text>
   </g>
 
   <!-- footer -->
   <line x1="80" y1="540" x2="1120" y2="540" stroke="#ddd6cc" stroke-width="1"/>
-  <text class="mono" x="80" y="576" font-size="17" fill="#2a2725">abdur rahim<tspan fill="#8a8682">  ·  understand + hands-on · mlx-tune</tspan></text>
+  <text class="mono" x="80" y="576" font-size="17" fill="#2a2725">Abdur Rahim<tspan fill="#8a8682">  ·  understand + hands-on · mlx-tune</tspan></text>
   <text class="mono" x="1120" y="576" font-size="17" fill="#8a8682" text-anchor="end">arahim3.github.io/jepa.html</text>
 </svg>
